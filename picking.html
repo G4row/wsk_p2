@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Picking · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<script src="warehouse.js"></script>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Picking', page_title: 'Picking consolidation', page_sub: 'Group and sum picking lines by line, product or both.',
+    excel_title: 'Import from Excel', excel_desc: 'Columns: A = product, B = quantity, C = line. Reading starts at row 2.',
+    manual_title: 'Manual entry', lbl_prod_name: 'Product', ph_prod_name: 'e.g. Item X',
+    lbl_total_qty: 'Quantity', ph_total_qty: 'e.g. 12', lbl_line: 'Line / location', ph_line: 'e.g. L-01',
+    btn_add: 'Add entry', btn_show: 'Show results', prepared_lines: 'Prepared lines',
+    col_prod: 'Product', col_total: 'Quantity', col_line: 'Line', col_action: 'Action',
+    modal_title: 'Consolidated picking results', lbl_group_by: 'Group by', opt_by_line: 'Line (total per line)',
+    opt_by_product: 'Product (total per product)', opt_by_both: 'Product and line',
+    lbl_sort_by: 'Sort by', opt_sort_qty: 'Quantity (high to low)', opt_sort_name: 'Name / line (A–Z)',
+    btn_close: 'Close', btn_clear: 'Clear data',
+    msg_fill: 'Fill in product, quantity and line.', msg_no_items: 'Add at least one line first.',
+    sel_title: 'Order', lbl_client: 'Client', lbl_order: 'Order number', opt_choose_client: '— choose a client —', opt_choose_order: '— choose an order —',
+    opt_order: '{o} · {n} lines', info_order: '{p} · {c} · {d} · {n} lines · {q} pcs', urgent: 'Urgent', normal: 'Normal',
+    line_n: 'Line {n}', col_loc: 'Pick location', col_desc: 'Description', not_floor: 'no floor stock', upper: 'upper level', no_stock: 'not in stock',
+    order_loaded: 'Order {o} loaded: {n} lines.'
+  },
+  nl: {
+    doc_title: 'Picking', page_title: 'Picking consolidatie', page_sub: 'Groepeer en tel pickregels op per regel, product of beide.',
+    excel_title: 'Importeren uit Excel', excel_desc: 'Kolommen: A = product, B = aantal, C = regel. Inlezen begint bij rij 2.',
+    manual_title: 'Handmatige invoer', lbl_prod_name: 'Product', ph_prod_name: 'bijv. Artikel X',
+    lbl_total_qty: 'Aantal', ph_total_qty: 'bijv. 12', lbl_line: 'Regel / locatie', ph_line: 'bijv. L-01',
+    btn_add: 'Toevoegen', btn_show: 'Toon resultaten', prepared_lines: 'Voorbereide regels',
+    col_prod: 'Product', col_total: 'Aantal', col_line: 'Regel', col_action: 'Actie',
+    modal_title: 'Geconsolideerde pickresultaten', lbl_group_by: 'Groeperen op', opt_by_line: 'Regel (totaal per regel)',
+    opt_by_product: 'Product (totaal per product)', opt_by_both: 'Product en regel',
+    lbl_sort_by: 'Sorteren op', opt_sort_qty: 'Aantal (hoog naar laag)', opt_sort_name: 'Naam / regel (A–Z)',
+    btn_close: 'Sluiten', btn_clear: 'Gegevens wissen',
+    msg_fill: 'Vul product, aantal en regel in.', msg_no_items: 'Voeg eerst minstens één regel toe.',
+    sel_title: 'Order', lbl_client: 'Klant', lbl_order: 'Ordernummer', opt_choose_client: '— kies een klant —', opt_choose_order: '— kies een order —',
+    opt_order: '{o} · {n} regels', info_order: '{p} · {c} · {d} · {n} regels · {q} st', urgent: 'Spoed', normal: 'Normaal',
+    line_n: 'Regel {n}', col_loc: 'Picklocatie', col_desc: 'Omschrijving', not_floor: 'geen voorraad op de vloer', upper: 'hoger niveau', no_stock: 'niet op voorraad',
+    order_loaded: 'Order {o} geladen: {n} regels.'
+  },
+  hr: {
+    doc_title: 'Picking', page_title: 'Picking konsolidacija', page_sub: 'Grupiranje i zbrajanje stavki po liniji, proizvodu ili oboje.',
+    excel_title: 'Uvoz iz Excela', excel_desc: 'Stupci: A = proizvod, B = količina, C = linija. Čitanje počinje od 2. reda.',
+    manual_title: 'Ručni unos', lbl_prod_name: 'Proizvod', ph_prod_name: 'npr. Artikl X',
+    lbl_total_qty: 'Količina', ph_total_qty: 'npr. 12', lbl_line: 'Linija / lokacija', ph_line: 'npr. L-01',
+    btn_add: 'Dodaj unos', btn_show: 'Prikaži rezultate', prepared_lines: 'Pripremljene linije',
+    col_prod: 'Proizvod', col_total: 'Količina', col_line: 'Linija', col_action: 'Akcija',
+    modal_title: 'Konsolidirani picking rezultati', lbl_group_by: 'Grupiraj po', opt_by_line: 'Liniji (ukupno po liniji)',
+    opt_by_product: 'Proizvodu (ukupno po proizvodu)', opt_by_both: 'Proizvodu i liniji',
+    lbl_sort_by: 'Sortiraj po', opt_sort_qty: 'Količini (od najveće)', opt_sort_name: 'Nazivu / liniji (A–Ž)',
+    btn_close: 'Zatvori', btn_clear: 'Očisti podatke',
+    msg_fill: 'Popunite proizvod, količinu i liniju.', msg_no_items: 'Najprije dodajte barem jednu liniju.',
+    sel_title: 'Narudžba', lbl_client: 'Klijent', lbl_order: 'Broj narudžbe', opt_choose_client: '— odaberite klijenta —', opt_choose_order: '— odaberite narudžbu —',
+    opt_order: '{o} · {n} linija', info_order: '{p} · {c} · {d} · {n} linija · {q} kom', urgent: 'Hitno', normal: 'Normalno',
+    line_n: 'Linija {n}', col_loc: 'Picking lokacija', col_desc: 'Opis', not_floor: 'nema na podu', upper: 'viši nivo', no_stock: 'nema na zalihi',
+    order_loaded: 'Narudžba {o} učitana: {n} linija.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="picking">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://operations/picking</div>
+  <h1 data-i18n="page_title">Picking consolidation</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card" id="selCard" hidden>
+    <h2 data-i18n="sel_title">Order</h2>
+    <div class="card-body">
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="selClient" data-i18n="lbl_client">Client</label>
+          <select id="selClient"></select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="selOrder" data-i18n="lbl_order">Order number</label>
+          <select id="selOrder" disabled></select>
+        </div>
+      </div>
+      <div class="status" id="orderInfo" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="excel_title">Import from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="manual_title">Manual entry</h2>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="prodName" data-i18n="lbl_prod_name">Product</label>
+        <input type="text" id="prodName" data-i18n-placeholder="ph_prod_name">
+      </div>
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="prodTotal" data-i18n="lbl_total_qty">Quantity</label>
+          <input type="number" id="prodTotal" min="1" inputmode="numeric" data-i18n-placeholder="ph_total_qty">
+        </div>
+        <div class="form-group flex-1">
+          <label for="prodLine" data-i18n="lbl_line">Line / location</label>
+          <input type="text" id="prodLine" data-i18n-placeholder="ph_line">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-secondary" onclick="addManualEntry()" data-i18n="btn_add">Add entry</button>
+        <button type="button" class="btn btn-primary" onclick="processAndShowResults()" data-i18n="btn_show">Show results</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span data-i18n="prepared_lines">Prepared lines</span> <span>(<span id="entryCount">0</span>)</span></h2>
+    <div class="table-wrap">
+      <table id="bufferTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th data-i18n="col_prod">Product</th>
+            <th data-i18n="col_total">Quantity</th>
+            <th data-i18n="col_line">Line</th>
+            <th data-i18n="col_loc">Pick location</th>
+            <th data-i18n="col_action">Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div id="resultModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-content">
+    <h2 id="modalTitle" data-i18n="modal_title">Consolidated picking results</h2>
+    <div class="modal-body">
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="groupBy" data-i18n="lbl_group_by">Group by</label>
+          <select id="groupBy" onchange="recalculateResults()">
+            <option value="line" data-i18n="opt_by_line">Line</option>
+            <option value="product" data-i18n="opt_by_product">Product</option>
+            <option value="both" data-i18n="opt_by_both">Product and line</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="sortBy" data-i18n="lbl_sort_by">Sort by</label>
+          <select id="sortBy" onchange="renderResults()">
+            <option value="total" data-i18n="opt_sort_qty">Quantity</option>
+            <option value="name" data-i18n="opt_sort_name">Name / line</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="resultsTable">
+        <thead id="resultsHead"></thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-body">
+      <div class="btn-group">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="btn_close">Close</button>
+        <button type="button" class="btn btn-danger" onclick="clearAllData()" data-i18n="btn_clear">Clear data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  let rawEntries = [], aggregatedResults = [];
+  const $ = (id) => document.getElementById(id);
+
+  /* rows: A = product, B = quantity, C = line (row 1 = header) */
+  function loadRows(data) {
+    const rows = data.rows || [];
+    rawEntries = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 3) continue;
+      const product = String(r[0] ?? '').trim();
+      const line = String(r[2] ?? '').trim();
+      if (product && line) rawEntries.push({ product, total: parseInt(r[1], 10) || 0, line });
+    }
+    WSK.setText($('excelStatus'), 'excel_loaded', { n: rawEntries.length });
+    updateBufferTable();
+  }
+
+  // own Excel file: lines as before. Master workbook: choose client → order (below).
+  const source = WSKSession.wireModule({
+    page: 'picking', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { rawEntries = []; updateBufferTable(); },
+    fromMain: () => null
+  });
+
+  /* ---------- client → order (master workbook) ----------
+     Orders: A order, B line, C client, D date, E priority, F product, G quantity, H carrier */
+  const str = (v) => v == null ? '' : String(v).trim();
+  let ORD = [], CLIENTS = new Map(), DESC = new Map(), PICK = new Map();
+
+  function buildPickLocations() {
+    // floor locations first (level 0), most stock first; otherwise the upper level with most stock
+    PICK = new Map();
+    WSKSession.sheet('stock').forEach(r => {
+      const loc = WSKWarehouse ? WSKWarehouse.parseLoc(r[0]) : null, code = str(r[1]);
+      if (!loc || !code) return;
+      const q = parseFloat(r[3]) || 0;
+      if (!PICK.has(code)) PICK.set(code, []);
+      PICK.get(code).push({ code: loc.code, lvl: loc.lvl, qty: q });
+    });
+    PICK.forEach(list => list.sort((a, b) => (a.lvl === 0 ? 0 : 1) - (b.lvl === 0 ? 0 : 1) || b.qty - a.qty));
+  }
+
+  function initOrders() {
+    ORD = WSKSession.sheet('orders').filter(r => str(r[0]) && str(r[5]));
+    if (!ORD.length) { $('selCard').hidden = true; return; }
+    CLIENTS = new Map(WSKSession.sheet('clients').map(r => [str(r[0]), str(r[1])]));
+    DESC = new Map(WSKSession.sheet('masterdata').map(r => [str(r[0]), str(r[1])]));
+    buildPickLocations();
+    $('selCard').hidden = false;
+    fillClients();
+  }
+
+  function fillClients() {
+    const keep = $('selClient').value;
+    const ids = [...new Set(ORD.map(r => str(r[2])))].sort();
+    $('selClient').innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_client'))}</option>` +
+      ids.map(id => `<option value="${WSK.esc(id)}">${WSK.esc(id)} · ${WSK.esc(CLIENTS.get(id) || '')}</option>`).join('');
+    $('selClient').value = ids.includes(keep) ? keep : '';
+    fillOrders();
+  }
+
+  function fillOrders() {
+    const cid = $('selClient').value, keep = $('selOrder').value;
+    const sel = $('selOrder');
+    if (!cid) { sel.innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_order'))}</option>`; sel.disabled = true; showOrderInfo(); return; }
+    const counts = new Map();
+    ORD.filter(r => str(r[2]) === cid).forEach(r => counts.set(str(r[0]), (counts.get(str(r[0])) || 0) + 1));
+    const nos = [...counts.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    sel.innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_order'))}</option>` +
+      nos.map(o => `<option value="${WSK.esc(o)}">${WSK.esc(WSK.t('opt_order', { o, n: counts.get(o) }))}</option>`).join('');
+    sel.disabled = false;
+    sel.value = nos.includes(keep) ? keep : '';
+    showOrderInfo();
+  }
+
+  function orderLines(no) {
+    return ORD.filter(r => str(r[0]) === no).sort((a, b) => (parseInt(a[1], 10) || 0) - (parseInt(b[1], 10) || 0));
+  }
+
+  function showOrderInfo() {
+    const no = $('selOrder').value;
+    if (!no) { WSK.setText($('orderInfo'), null); return; }
+    const lines = orderLines(no), f = lines[0];
+    const urgent = /^(urgent|hitno|spoed)/i.test(str(f[4]));
+    const pcs = lines.reduce((s, r) => s + (parseFloat(r[6]) || 0), 0);
+    $('orderInfo').removeAttribute('data-i18n');
+    $('orderInfo').textContent = WSK.t('info_order', { p: WSK.t(urgent ? 'urgent' : 'normal'), c: str(f[7]) || '—', d: str(f[3]), n: lines.length, q: pcs.toLocaleString() });
+    $('orderInfo').style.color = urgent ? 'var(--warn)' : '';
+  }
+
+  function loadOrder() {
+    const no = $('selOrder').value;
+    showOrderInfo();
+    if (!no) return;
+    rawEntries = orderLines(no).map((r, i) => {
+      const n = parseInt(r[1], 10) || i + 1;
+      return { product: str(r[5]), total: parseInt(r[6], 10) || 0, line: String(n), lineNo: n, desc: DESC.get(str(r[5])) || '' };
+    });
+    WSK.setText($('excelStatus'), 'order_loaded', { o: no, n: rawEntries.length });
+    updateBufferTable();
+  }
+
+  $('selClient').addEventListener('change', () => { $('selOrder').value = ''; fillOrders(); });
+  $('selOrder').addEventListener('change', loadOrder);
+  WSKSession.ready.then(initOrders);
+
+  const lineLabel = (item) => item.lineNo ? WSK.t('line_n', { n: item.lineNo }) : item.line;
+
+  function pickCell(item) {
+    const list = PICK.get(item.product);
+    if (!list || !list.length) return `<span class="muted">${item.lineNo ? WSK.esc(WSK.t('no_stock')) : ''}</span>`;
+    const best = list[0];
+    const note = best.lvl === 0 ? `<span class="muted"> · ${best.qty}</span>` : `<span class="muted"> · ${WSK.esc(WSK.t('upper'))}</span>`;
+    return `<span class="loc-tag">${WSK.esc(best.code)}</span>${note}`;
+  }
+
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0) };
+      loadRows(data);
+      source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  function addManualEntry() {
+    const product = $('prodName').value.trim();
+    const total = parseInt($('prodTotal').value, 10);
+    const line = $('prodLine').value.trim();
+    if (!product || isNaN(total) || !line) { alert(WSK.t('msg_fill')); return; }
+    rawEntries.push({ product, total, line });
+    $('prodName').value = ''; $('prodTotal').value = ''; $('prodLine').value = '';
+    $('prodName').focus();
+    updateBufferTable();
+  }
+
+  function removeEntry(idx) { rawEntries.splice(idx, 1); updateBufferTable(); }
+
+  function updateBufferTable() {
+    const tbody = document.querySelector('#bufferTable tbody');
+    $('entryCount').textContent = rawEntries.length;
+    if (!rawEntries.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-cell">${WSK.esc(WSK.t('no_rows'))}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rawEntries.map((item, i) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td><strong>${WSK.esc(item.product)}</strong>${item.desc ? `<div class="muted" style="font-size:12px">${WSK.esc(item.desc)}</div>` : ''}</td>
+        <td class="num">${item.total}</td>
+        <td><span class="loc-tag">${WSK.esc(lineLabel(item))}</span></td>
+        <td>${pickCell(item)}</td>
+        <td><button type="button" class="btn btn-danger btn-sm" onclick="removeEntry(${i})" aria-label="${WSK.esc(WSK.t('remove'))}">×</button></td>
+      </tr>`).join('');
+  }
+
+  function processAndShowResults() {
+    if (!rawEntries.length) { alert(WSK.t('msg_no_items')); return; }
+    recalculateResults();
+    $('resultModal').classList.add('open');
+  }
+  function closeModal() { $('resultModal').classList.remove('open'); }
+  function clearAllData() {
+    rawEntries = []; aggregatedResults = [];
+    updateBufferTable(); closeModal();
+    WSK.resetFile($('excelFile')); WSK.setText($('excelStatus'), null);
+  }
+
+  function recalculateResults() {
+    const mode = $('groupBy').value;
+    const map = new Map();
+    rawEntries.forEach(item => {
+      const key = mode === 'line' ? item.line.toUpperCase()
+        : mode === 'product' ? item.product.toUpperCase()
+        : item.product.toUpperCase() + '__' + item.line.toUpperCase();
+      if (!map.has(key)) map.set(key, { label: mode === 'line' ? item.line : item.product, product: item.product, line: item.line, lineNo: item.lineNo, total: 0 });
+      map.get(key).total += item.total;
+    });
+    aggregatedResults = Array.from(map.values());
+    renderResults();
+  }
+
+  function renderResults() {
+    const sortBy = $('sortBy').value;
+    const mode = $('groupBy').value;
+    aggregatedResults.sort((a, b) => sortBy === 'total'
+      ? b.total - a.total
+      : (mode === 'line' && a.lineNo && b.lineNo) ? a.lineNo - b.lineNo
+      : (a.label + a.line).localeCompare(b.label + b.line, undefined, { numeric: true }));
+
+    $('resultsHead').innerHTML = mode === 'both'
+      ? `<tr><th>${WSK.esc(WSK.t('col_prod'))}</th><th>${WSK.esc(WSK.t('col_line'))}</th><th>${WSK.esc(WSK.t('col_total'))}</th></tr>`
+      : `<tr><th>${WSK.esc(WSK.t(mode === 'line' ? 'col_line' : 'col_prod'))}</th><th>${WSK.esc(WSK.t('col_total'))}</th></tr>`;
+
+    $('resultsBody').innerHTML = aggregatedResults.map(item => mode === 'both'
+      ? `<tr><td><strong>${WSK.esc(item.product)}</strong></td><td><span class="loc-tag">${WSK.esc(lineLabel(item))}</span></td><td class="num val-good">${item.total}</td></tr>`
+      : `<tr><td>${mode === 'line' ? `<span class="loc-tag">${WSK.esc(lineLabel(item))}</span>` : `<strong>${WSK.esc(item.label)}</strong>`}</td><td class="num val-good">${item.total}</td></tr>`
+    ).join('');
+  }
+
+  $('resultModal').addEventListener('click', (e) => { if (e.target.id === 'resultModal') closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('wsk:langchange', () => {
+    if (ORD.length) { fillClients(); }
+    updateBufferTable();
+    if ($('resultModal').classList.contains('open')) renderResults();
+  });
+  updateBufferTable();
+</script>
+</body>
+</html>

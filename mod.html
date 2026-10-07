@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>MOD Calculator · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<style>
+  .mode-row { display: flex; gap: 0; margin-bottom: 16px; }
+  .mode-btn { flex: 1; padding: 12px 10px; background: transparent; border: 1px solid var(--accent); color: var(--accent);
+    font: 700 14px/1 var(--mono); letter-spacing: .12em; cursor: pointer; }
+  .mode-btn + .mode-btn { border-left: 0; }
+  .mode-btn[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+  .mode-btn:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+  .kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
+  .kv span { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .kv b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; color: var(--white); }
+  .kv b.good { color: var(--accent); }
+  .kv b.warn { color: var(--warn); }
+  .md-warn { border-color: var(--warn); }
+  .md-warn h2 { color: var(--warn); }
+  .md-warn input { width: 100%; min-width: 70px; }
+  tr.unknown td { background: rgba(255, 210, 63, .06); }
+  .warn-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border: 1px dashed var(--warn); color: var(--warn); font-size: 11px; }
+  .new-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--accent); color: var(--accent); font-size: 10px; }
+  .muted-s { color: var(--muted); font-size: 12px; }
+  tfoot td { border-top: 1px solid var(--accent); font-weight: 700; }
+  .col-in { display: none; }
+  body.m-inbound .col-in { display: table-cell; }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'MOD Calculator', page_title: 'MOD Calculator', page_sub: 'Full boxes, pallets and remainders for a picking order or an incoming purchase order.',
+    src_title: 'What to calculate', m_pick: '[PICKING]', m_in: '[INBOUND]',
+    lbl_client: 'Client', lbl_order: 'Order', lbl_po: 'Purchase order',
+    opt_choose_client: '— choose a client —', opt_choose_order: '— choose an order —', opt_choose_po: '— choose a purchase order —',
+    opt_order: '{o} · {n} lines', opt_po: '{o} · ETA {eta} · {n} lines',
+    hint_pick: 'Picking: how many full boxes to take and how many loose pieces to count.',
+    hint_in: 'Inbound: how many full pallets, extra boxes and loose pieces arrive.',
+    no_main: 'No master workbook loaded: use your own Excel file or manual entry below.',
+    loaded: '{o}: {n} lines loaded.',
+    md_title: 'Not in MasterData', md_desc: '{n} product(s) are not in MasterData, so boxes and pallets cannot be calculated. Fill in the data below; the results update straight away.',
+    md_code: 'Product code', md_descr: 'Description', md_box: 'Pcs/box', md_pal: 'Boxes/pallet', md_type: 'Pallet type',
+    btn_md: 'Download updated MasterData', md_saved: 'MasterData_updated.xlsx downloaded with {n} new product(s). Use it as the MasterData sheet in your master workbook.',
+    md_missing: 'Fill in pcs/box for every new product first.',
+    res_title: 'Results', col_line: 'Line', col_prod: 'Product', col_total: 'Qty (pcs)', col_box: 'Pcs/box',
+    col_full: 'Full boxes', col_rem: 'Loose pcs', col_perpal: 'Pcs/pallet', col_fullpal: 'Full pallets', col_boxpal: '+ Boxes', col_action: '',
+    k_lines: 'Lines', k_pcs: 'Pieces', k_boxes: 'Full boxes', k_loose: 'Loose pcs', k_pal: 'Pallets (est.)', k_new: 'Not in MasterData',
+    total: 'Total', unknown: 'Not in MasterData', new_md: 'NEW',
+    excel_title: 'Own list from Excel', excel_desc: 'Columns: A = product, B = quantity, C = box size (optional: if empty, MasterData is used). Reading starts at row 2.',
+    manual_title: 'Manual entry', lbl_prod_name: 'Product', ph_prod_name: 'e.g. NV-2001',
+    lbl_total_qty: 'Quantity (pcs)', ph_total_qty: 'e.g. 10', lbl_box_qty: 'Box size', ph_box_qty: 'empty = MasterData',
+    btn_add: 'Add item', btn_clear: 'Clear list',
+    msg_invalid: 'Enter a product and a quantity. Box size is needed if the product is not in MasterData.',
+    empty: 'Choose a client and an order, upload a list or add items manually.'
+  },
+  nl: {
+    doc_title: 'MOD Calculator', page_title: 'MOD Calculator', page_sub: 'Volle dozen, pallets en restanten voor een pickorder of een inkomende inkooporder.',
+    src_title: 'Wat berekenen', m_pick: '[PICKING]', m_in: '[INKOMEND]',
+    lbl_client: 'Klant', lbl_order: 'Order', lbl_po: 'Inkooporder',
+    opt_choose_client: '— kies een klant —', opt_choose_order: '— kies een order —', opt_choose_po: '— kies een inkooporder —',
+    opt_order: '{o} · {n} regels', opt_po: '{o} · ETA {eta} · {n} regels',
+    hint_pick: 'Picking: hoeveel volle dozen pakken en hoeveel losse stuks tellen.',
+    hint_in: 'Inkomend: hoeveel volle pallets, extra dozen en losse stuks er binnenkomen.',
+    no_main: 'Geen hoofdbestand geladen: gebruik een eigen Excel-bestand of handmatige invoer hieronder.',
+    loaded: '{o}: {n} regels geladen.',
+    md_title: 'Niet in MasterData', md_desc: '{n} product(en) staan niet in MasterData, dus dozen en pallets kunnen niet worden berekend. Vul de gegevens hieronder in; de resultaten worden direct bijgewerkt.',
+    md_code: 'Productcode', md_descr: 'Omschrijving', md_box: 'St/doos', md_pal: 'Dozen/pallet', md_type: 'Pallettype',
+    btn_md: 'Bijgewerkte MasterData downloaden', md_saved: 'MasterData_updated.xlsx gedownload met {n} nieuw(e) product(en). Gebruik het als blad MasterData in je hoofdbestand.',
+    md_missing: 'Vul eerst st/doos in voor elk nieuw product.',
+    res_title: 'Resultaten', col_line: 'Regel', col_prod: 'Product', col_total: 'Aantal (st)', col_box: 'St/doos',
+    col_full: 'Volle dozen', col_rem: 'Losse st', col_perpal: 'St/pallet', col_fullpal: 'Volle pallets', col_boxpal: '+ Dozen', col_action: '',
+    k_lines: 'Regels', k_pcs: 'Stuks', k_boxes: 'Volle dozen', k_loose: 'Losse st', k_pal: 'Pallets (schatting)', k_new: 'Niet in MasterData',
+    total: 'Totaal', unknown: 'Niet in MasterData', new_md: 'NIEUW',
+    excel_title: 'Eigen lijst uit Excel', excel_desc: 'Kolommen: A = product, B = aantal, C = doosgrootte (optioneel: leeg = MasterData). Inlezen begint bij rij 2.',
+    manual_title: 'Handmatige invoer', lbl_prod_name: 'Product', ph_prod_name: 'bijv. NV-2001',
+    lbl_total_qty: 'Aantal (st)', ph_total_qty: 'bijv. 10', lbl_box_qty: 'Doosgrootte', ph_box_qty: 'leeg = MasterData',
+    btn_add: 'Toevoegen', btn_clear: 'Lijst wissen',
+    msg_invalid: 'Vul een product en een aantal in. Doosgrootte is nodig als het product niet in MasterData staat.',
+    empty: 'Kies een klant en een order, upload een lijst of voeg items handmatig toe.'
+  },
+  hr: {
+    doc_title: 'MOD kalkulator', page_title: 'MOD kalkulator', page_sub: 'Pune kutije, palete i ostaci za picking narudžbu ili narudžbenicu koja stiže.',
+    src_title: 'Što računati', m_pick: '[PICKING]', m_in: '[ULAZ ROBE]',
+    lbl_client: 'Klijent', lbl_order: 'Narudžba', lbl_po: 'Narudžbenica',
+    opt_choose_client: '— odaberite klijenta —', opt_choose_order: '— odaberite narudžbu —', opt_choose_po: '— odaberite narudžbenicu —',
+    opt_order: '{o} · {n} linija', opt_po: '{o} · ETA {eta} · {n} linija',
+    hint_pick: 'Picking: koliko punih kutija uzeti i koliko komada prebrojati.',
+    hint_in: 'Ulaz robe: koliko punih paleta, dodatnih kutija i komada stiže.',
+    no_main: 'Glavni Excel nije učitan: koristite vlastitu datoteku ili ručni unos ispod.',
+    loaded: '{o}: učitano {n} linija.',
+    md_title: 'Nije u MasterData', md_desc: '{n} proizvod(a) nema u MasterData pa se kutije i palete ne mogu izračunati. Upišite podatke ispod; rezultati se odmah ažuriraju.',
+    md_code: 'Šifra proizvoda', md_descr: 'Opis', md_box: 'Kom/kutija', md_pal: 'Kutija/paleta', md_type: 'Tip palete',
+    btn_md: 'Preuzmi ažurirani MasterData', md_saved: 'Preuzet MasterData_updated.xlsx s {n} novih proizvoda. Koristite ga kao list MasterData u glavnom Excelu.',
+    md_missing: 'Najprije upišite kom/kutija za svaki novi proizvod.',
+    res_title: 'Rezultati', col_line: 'Linija', col_prod: 'Proizvod', col_total: 'Količina (kom)', col_box: 'Kom/kutija',
+    col_full: 'Pune kutije', col_rem: 'Kom', col_perpal: 'Kom/paleta', col_fullpal: 'Pune palete', col_boxpal: '+ Kutije', col_action: '',
+    k_lines: 'Linija', k_pcs: 'Komada', k_boxes: 'Punih kutija', k_loose: 'Kom', k_pal: 'Paleta (procjena)', k_new: 'Nije u MasterData',
+    total: 'Ukupno', unknown: 'Nije u MasterData', new_md: 'NOVO',
+    excel_title: 'Vlastiti popis iz Excela', excel_desc: 'Stupci: A = proizvod, B = količina, C = količina po kutiji (neobavezno: prazno = MasterData). Čitanje počinje od 2. reda.',
+    manual_title: 'Ručni unos', lbl_prod_name: 'Proizvod', ph_prod_name: 'npr. NV-2001',
+    lbl_total_qty: 'Količina (kom)', ph_total_qty: 'npr. 10', lbl_box_qty: 'Količina po kutiji', ph_box_qty: 'prazno = MasterData',
+    btn_add: 'Dodaj stavku', btn_clear: 'Očisti popis',
+    msg_invalid: 'Upišite proizvod i količinu. Količina po kutiji je potrebna ako proizvoda nema u MasterData.',
+    empty: 'Odaberite klijenta i narudžbu, učitajte popis ili dodajte stavke ručno.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="mod" class="m-picking">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://tools/mod</div>
+  <h1 data-i18n="page_title">MOD Calculator</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="src_title">What to calculate</h2>
+    <div class="card-body">
+      <div class="mode-row" role="group">
+        <button type="button" class="mode-btn" id="mPick" data-mode="picking" aria-pressed="true" data-i18n="m_pick">[PICKING]</button>
+        <button type="button" class="mode-btn" id="mIn" data-mode="inbound" aria-pressed="false" data-i18n="m_in">[INBOUND]</button>
+      </div>
+      <p class="hint" id="modeHint"></p>
+      <div class="flex-row" id="selRow">
+        <div class="form-group flex-1">
+          <label for="selClient" data-i18n="lbl_client">Client</label>
+          <select id="selClient"></select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="selDoc" id="lblDoc">Order</label>
+          <select id="selDoc" disabled></select>
+        </div>
+      </div>
+      <div class="status" id="selInfo" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card md-warn" id="mdCard" hidden>
+    <h2>⚠ <span data-i18n="md_title">Not in MasterData</span></h2>
+    <div class="card-body">
+      <p class="hint" id="mdDesc"></p>
+    </div>
+    <div class="table-wrap">
+      <table id="mdTable">
+        <thead><tr>
+          <th data-i18n="md_code">Product code</th><th data-i18n="md_descr">Description</th>
+          <th data-i18n="md_box">Pcs/box</th><th data-i18n="md_pal">Boxes/pallet</th><th data-i18n="md_type">Pallet type</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <button type="button" class="btn btn-primary" id="btnMd" data-i18n="btn_md">Download updated MasterData</button>
+      <div class="status" id="mdStatus" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span data-i18n="res_title">Results</span> <span id="resTitle" style="color: var(--white)"></span></h2>
+    <div class="card-body" id="sumBody" hidden>
+      <div class="kvs" id="sum"></div>
+    </div>
+    <div class="table-wrap">
+      <table id="resTable">
+        <thead>
+          <tr>
+            <th data-i18n="col_line">Line</th>
+            <th data-i18n="col_prod">Product</th>
+            <th data-i18n="col_total">Qty (pcs)</th>
+            <th data-i18n="col_box">Pcs/box</th>
+            <th data-i18n="col_full">Full boxes</th>
+            <th data-i18n="col_rem">Loose pcs</th>
+            <th class="col-in" data-i18n="col_perpal">Pcs/pallet</th>
+            <th class="col-in" data-i18n="col_fullpal">Full pallets</th>
+            <th class="col-in" data-i18n="col_boxpal">+ Boxes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="manual_title">Manual entry</h2>
+    <div class="card-body">
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="prodName" data-i18n="lbl_prod_name">Product</label>
+          <input type="text" id="prodName" list="mdList" data-i18n-placeholder="ph_prod_name">
+          <datalist id="mdList"></datalist>
+        </div>
+        <div class="form-group flex-1">
+          <label for="prodQty" data-i18n="lbl_total_qty">Quantity (pcs)</label>
+          <input type="number" id="prodQty" min="0" inputmode="numeric" data-i18n-placeholder="ph_total_qty">
+        </div>
+        <div class="form-group flex-1">
+          <label for="boxQty" data-i18n="lbl_box_qty">Box size</label>
+          <input type="number" id="boxQty" min="1" inputmode="numeric" data-i18n-placeholder="ph_box_qty">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-secondary" id="btnAdd" data-i18n="btn_add">Add item</button>
+        <button type="button" class="btn btn-danger" id="btnClear" data-i18n="btn_clear">Clear list</button>
+      </div>
+      <div class="status" id="manStatus" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="excel_title">Own list from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const str = (v) => v == null ? '' : String(v).trim();
+  const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  const fmtN = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+
+  let MODE = 'picking';
+  let ITEMS = [];          // { name, qty, box (own box size or 0), line, desc }
+  let docLabel = '';
+  let MD = new Map();      // code -> { desc, box, perBox, type }
+  let EXTRA = {};          // products added on this page: code -> { desc, box, pal, type }
+  let CLIENTS = new Map(), ORD = [], INB = [];
+
+  /* ---------- master data ---------- */
+  function loadMaster() {
+    MD = new Map();
+    WSKSession.sheet('masterdata').forEach(r => {
+      const c = str(r[0]); if (!c) return;
+      MD.set(c, { desc: str(r[1]), box: num(r[3]) || 1, pal: num(r[4]), type: str(r[9]) });
+    });
+    CLIENTS = new Map(WSKSession.sheet('clients').map(r => [str(r[0]), str(r[1])]));
+    // Orders: A order, B line, C client, D date, E priority, F product, G quantity, H carrier
+    ORD = WSKSession.sheet('orders').filter(r => str(r[0]) && str(r[5]));
+    // Inbound: A PO, B client, C date, D ETA, E dock, F product, G quantity, H note
+    INB = WSKSession.sheet('inbound').filter(r => str(r[0]) && str(r[5]));
+    $('mdList').innerHTML = [...MD.keys()].map(c => `<option value="${WSK.esc(c)}">`).join('');
+  }
+  function info(code) {
+    if (MD.has(code)) return { ...MD.get(code), known: true };
+    const e = EXTRA[code];
+    if (e && e.box > 0) return { desc: e.desc, box: e.box, pal: e.pal, type: e.type, known: true, added: true };
+    return { desc: e ? e.desc : '', box: 0, pal: 0, type: '', known: false };
+  }
+
+  /* extra products survive navigation (stored with the session data) */
+  const EXTRA_KEY = 'mod-md';
+  function saveExtra() { WSKSession.setOverride(EXTRA_KEY, '', EXTRA); }
+
+  /* ---------- mode + selectors ---------- */
+  function setMode(m) {
+    MODE = m;
+    document.body.classList.toggle('m-inbound', m === 'inbound');
+    document.body.classList.toggle('m-picking', m === 'picking');
+    $('mPick').setAttribute('aria-pressed', m === 'picking');
+    $('mIn').setAttribute('aria-pressed', m === 'inbound');
+    WSK.setText($('modeHint'), m === 'picking' ? 'hint_pick' : 'hint_in');
+    WSK.setText($('lblDoc'), m === 'picking' ? 'lbl_order' : 'lbl_po');
+    fillClients();
+  }
+  const rowsForMode = () => MODE === 'picking' ? ORD : INB;
+  const clientCol = () => MODE === 'picking' ? 2 : 1;
+
+  function fillClients() {
+    const rows = rowsForMode(), keep = $('selClient').value;
+    const ids = [...new Set(rows.map(r => str(r[clientCol()])))].sort();
+    $('selRow').hidden = !rows.length;
+    if (!rows.length) WSK.setText($('selInfo'), WSKSession.isSignedIn() ? null : 'no_main');
+    $('selClient').innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_client'))}</option>` +
+      ids.map(id => `<option value="${WSK.esc(id)}">${WSK.esc(id)} · ${WSK.esc(CLIENTS.get(id) || '')}</option>`).join('');
+    $('selClient').value = ids.includes(keep) ? keep : '';
+    fillDocs();
+  }
+
+  function fillDocs() {
+    const cid = $('selClient').value, sel = $('selDoc');
+    const ph = WSK.t(MODE === 'picking' ? 'opt_choose_order' : 'opt_choose_po');
+    if (!cid) { sel.innerHTML = `<option value="">${WSK.esc(ph)}</option>`; sel.disabled = true; return; }
+    const docs = new Map();
+    rowsForMode().filter(r => str(r[clientCol()]) === cid).forEach(r => {
+      const d = docs.get(str(r[0])) || { n: 0, eta: str(r[3]) }; d.n++; docs.set(str(r[0]), d);
+    });
+    const list = [...docs.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+    sel.innerHTML = `<option value="">${WSK.esc(ph)}</option>` + list.map(([o, d]) =>
+      `<option value="${WSK.esc(o)}">${WSK.esc(WSK.t(MODE === 'picking' ? 'opt_order' : 'opt_po', { o, n: d.n, eta: d.eta || '--:--' }))}</option>`).join('');
+    sel.disabled = false;
+  }
+
+  function loadDoc() {
+    const no = $('selDoc').value; if (!no) return;
+    const rows = rowsForMode().filter(r => str(r[0]) === no);
+    if (MODE === 'picking') {
+      rows.sort((a, b) => num(a[1]) - num(b[1]));
+      ITEMS = rows.map((r, i) => ({ name: str(r[5]), qty: num(r[6]), box: 0, line: String(parseInt(r[1], 10) || i + 1) }));
+    } else {
+      ITEMS = rows.map((r, i) => ({ name: str(r[5]), qty: num(r[6]), box: 0, line: String(i + 1) }));
+    }
+    docLabel = no;
+    $('selInfo').removeAttribute('data-i18n');
+    $('selInfo').textContent = WSK.t('loaded', { o: no, n: ITEMS.length });
+    render();
+  }
+
+  /* ---------- calculation ---------- */
+  function calc(it) {
+    const m = info(it.name);
+    const box = it.box || m.box;
+    if (!box) return { m, ok: false };
+    const full = Math.floor(it.qty / box), rem = it.qty - full * box;
+    const r = { m, ok: true, box, full, rem };
+    if (m.pal > 0) {
+      const per = box * m.pal;
+      r.per = per; r.fullPal = Math.floor(it.qty / per);
+      r.boxPal = Math.floor((it.qty - r.fullPal * per) / box);
+      r.pallets = r.fullPal + (it.qty - r.fullPal * per > 0 ? 1 : 0);
+    }
+    return r;
+  }
+
+  function render() {
+    const tb = $('resTable').querySelector('tbody'), tf = $('resTable').querySelector('tfoot');
+    $('resTitle').textContent = docLabel ? '· ' + docLabel : '';
+    if (!ITEMS.length) {
+      tb.innerHTML = `<tr><td colspan="10" class="empty-cell">${WSK.esc(WSK.t('empty'))}</td></tr>`;
+      tf.innerHTML = ''; $('sumBody').hidden = true; renderMd([]); return;
+    }
+    let pcs = 0, boxes = 0, loose = 0, pallets = 0, palKnown = true;
+    const unknown = [];
+    tb.innerHTML = ITEMS.map((it, i) => {
+      const c = calc(it); pcs += it.qty;
+      const name = `<strong>${WSK.esc(it.name)}</strong>${c.m.added ? `<span class="new-tag">${WSK.esc(WSK.t('new_md'))}</span>` : ''}` +
+        (c.m.desc ? `<div class="muted-s">${WSK.esc(c.m.desc)}</div>` : '');
+      const del = `<td><button type="button" class="btn btn-danger btn-sm" data-del="${i}" aria-label="${WSK.esc(WSK.t('remove'))}: ${WSK.esc(it.name)}">×</button></td>`;
+      if (!c.ok) {
+        if (!unknown.includes(it.name)) unknown.push(it.name);
+        palKnown = false;
+        return `<tr class="unknown"><td class="num">${WSK.esc(it.line)}</td><td>${name}<div><span class="warn-tag">${WSK.esc(WSK.t('unknown'))}</span></div></td>
+          <td class="num">${fmtN(it.qty)}</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td>
+          <td class="col-in muted">—</td><td class="col-in muted">—</td><td class="col-in muted">—</td>${del}</tr>`;
+      }
+      boxes += c.full; loose += c.rem;
+      if (c.per) pallets += c.pallets; else palKnown = false;
+      return `<tr><td class="num">${WSK.esc(it.line)}</td><td>${name}</td>
+        <td class="num">${fmtN(it.qty)}</td><td class="num">${fmtN(c.box)}</td>
+        <td class="num ${c.full ? 'val-good' : 'muted'}">${fmtN(c.full)}</td><td class="num ${c.rem ? 'val-bad' : ''}">${fmtN(c.rem)}</td>
+        <td class="col-in num">${c.per ? fmtN(c.per) : '—'}</td>
+        <td class="col-in num ${c.fullPal ? 'val-good' : 'muted'}">${c.per ? fmtN(c.fullPal) : '—'}</td>
+        <td class="col-in num">${c.per ? fmtN(c.boxPal) : '—'}</td>${del}</tr>`;
+    }).join('');
+    tf.innerHTML = `<tr><td></td><td>${WSK.esc(WSK.t('total'))}</td><td class="num">${fmtN(pcs)}</td><td></td>
+      <td class="num">${fmtN(boxes)}</td><td class="num">${fmtN(loose)}</td><td class="col-in"></td><td class="col-in"></td><td class="col-in"></td><td></td></tr>`;
+    const kv = (k, v, cls) => `<div class="kv"><span>${WSK.esc(WSK.t(k))}</span><b class="${cls || ''}">${WSK.esc(String(v))}</b></div>`;
+    $('sum').innerHTML = kv('k_lines', ITEMS.length) + kv('k_pcs', fmtN(pcs)) + kv('k_boxes', fmtN(boxes), 'good') + kv('k_loose', fmtN(loose), loose ? 'warn' : '') +
+      (MODE === 'inbound' ? kv('k_pal', (palKnown ? '' : '≥ ') + fmtN(pallets), 'good') : '') +
+      (unknown.length ? kv('k_new', unknown.length, 'warn') : '');
+    $('sumBody').hidden = false;
+    renderMd(unknown);
+  }
+
+  /* ---------- products missing from MasterData ---------- */
+  let mdShown = [];
+  function renderMd(unknown) {
+    // keep rows for products already being filled in on this page
+    const added = ITEMS.map(i => i.name).filter(n => EXTRA[n] && !MD.has(n));
+    const list = [...new Set([...unknown, ...added])];
+    $('mdCard').hidden = !list.length;
+    if (!list.length) { mdShown = []; return; }
+    $('mdDesc').textContent = WSK.t('md_desc', { n: list.length });
+    if (list.join('|') === mdShown.join('|')) return;   // don't rebuild while the user types
+    mdShown = list;
+    $('mdTable').querySelector('tbody').innerHTML = list.map(code => {
+      const e = EXTRA[code] || {};
+      const v = (x) => x ? WSK.esc(String(x)) : '';
+      return `<tr data-code="${WSK.esc(code)}"><td><strong>${WSK.esc(code)}</strong></td>
+        <td><input type="text" data-f="desc" value="${v(e.desc)}"></td>
+        <td><input type="number" min="1" inputmode="numeric" data-f="box" value="${v(e.box)}"></td>
+        <td><input type="number" min="1" inputmode="numeric" data-f="pal" value="${v(e.pal)}"></td>
+        <td><select data-f="type"><option value="EU">EU</option><option value="BLOCK"${e.type === 'BLOCK' ? ' selected' : ''}>BLOCK</option></select></td></tr>`;
+    }).join('');
+  }
+  $('mdTable').addEventListener('input', (e) => {
+    const tr = e.target.closest('tr[data-code]'); if (!tr) return;
+    const code = tr.dataset.code, f = e.target.dataset.f;
+    const x = EXTRA[code] || (EXTRA[code] = { desc: '', box: 0, pal: 0, type: 'EU' });
+    x[f] = (f === 'box' || f === 'pal') ? Math.max(0, parseInt(e.target.value, 10) || 0) : e.target.value.trim();
+    saveExtra(); render();
+  });
+
+  $('btnMd').addEventListener('click', () => {
+    const codes = mdShown.filter(c => !MD.has(c));
+    if (codes.some(c => !(EXTRA[c] && EXTRA[c].box > 0))) { WSK.setText($('mdStatus'), 'md_missing'); return; }
+    const raw = WSKSession.rawSheet('masterdata');
+    const header = raw[0] || ['Product code', 'Description', 'Client ID', 'Pcs/box', 'Boxes/pallet', 'Pcs/pallet', 'Weight kg/pc', 'Sales (pcs/90 days)', 'Price €/pc', 'Pallet type'];
+    const cid = $('selClient').value;
+    const added = codes.map(c => { const e = EXTRA[c]; return [c, e.desc, cid, e.box, e.pal || '', e.pal ? e.box * e.pal : '', '', '', '', e.type || 'EU']; });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...raw.slice(1), ...added]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'MasterData');
+    XLSX.writeFile(wb, 'MasterData_updated.xlsx');
+    $('mdStatus').removeAttribute('data-i18n');
+    $('mdStatus').textContent = WSK.t('md_saved', { n: added.length });
+  });
+
+  /* ---------- own list + manual entry ---------- */
+  function loadRows(data) {
+    const rows = data.rows || [];
+    ITEMS = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i]; if (!r) continue;
+      const name = str(r[0]); if (!name) continue;
+      ITEMS.push({ name, qty: num(r[1]), box: Math.max(0, parseInt(r[2], 10) || 0), line: String(ITEMS.length + 1) });
+    }
+    docLabel = '';
+    WSK.setText($('excelStatus'), 'excel_loaded', { n: ITEMS.length });
+    render();
+  }
+  const source = WSKSession.wireModule({
+    page: 'mod', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { ITEMS = []; docLabel = ''; render(); },
+    fromMain: () => null      // master workbook: choose [PICKING]/[INBOUND] → client → order above
+  });
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0) };
+      loadRows(data); source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  $('btnAdd').addEventListener('click', () => {
+    const name = $('prodName').value.trim(), qty = parseInt($('prodQty').value, 10), box = parseInt($('boxQty').value, 10) || 0;
+    if (!name || isNaN(qty) || qty < 0) { WSK.setText($('manStatus'), 'msg_invalid'); return; }
+    WSK.setText($('manStatus'), null);
+    ITEMS.push({ name, qty, box, line: String(ITEMS.length + 1) });
+    $('prodName').value = ''; $('prodQty').value = ''; $('boxQty').value = '';
+    $('prodName').focus();
+    render();
+  });
+  $('btnClear').addEventListener('click', () => {
+    ITEMS = []; docLabel = ''; $('selDoc').value = ''; WSK.resetFile($('excelFile'));
+    WSK.setText($('excelStatus'), null); WSK.setText($('selInfo'), null); render();
+  });
+  $('resTable').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-del]'); if (!b) return;
+    ITEMS.splice(+b.dataset.del, 1); render();
+  });
+
+  $('mPick').addEventListener('click', () => setMode('picking'));
+  $('mIn').addEventListener('click', () => setMode('inbound'));
+  $('selClient').addEventListener('change', fillDocs);
+  $('selDoc').addEventListener('change', loadDoc);
+  document.addEventListener('wsk:langchange', () => { const c = $('selClient').value, d = $('selDoc').value; setMode(MODE); $('selClient').value = c; fillDocs(); $('selDoc').value = d; mdShown = []; render(); });
+
+  WSKSession.ready.then(() => WSKSession.getOverride(EXTRA_KEY)).then(ov => {
+    EXTRA = (ov && ov.data) || {};
+    loadMaster();
+    const q = new URLSearchParams(location.search);
+    setMode(q.get('mode') === 'inbound' ? 'inbound' : 'picking');
+    render();
+  });
+</script>
+</body>
+</html>

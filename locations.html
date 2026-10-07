@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Location Generator · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Location Generator', page_title: 'Location generator', page_sub: 'Generate location codes using the LL-NN-L-N pattern and export them.',
+    gen_config: 'Pattern', gen_instructions: 'Enter single values (A or 05), comma lists (A,B,C) or ranges (A-S, [A-D], AA-AC, 00-42).',
+    lbl_ll: '1. LL — 2 letters', ph_ll: 'e.g. AA,AB or AA-AC',
+    lbl_nn: '2. NN — 2 digits', ph_nn: 'e.g. 01-10 or 01,05',
+    lbl_l: '3. L — 1 letter', ph_l: 'e.g. A-S or A,B',
+    lbl_n: '4. N — 1 digit', ph_n: 'e.g. 1-5 or 1,2',
+    preview: 'This will create {n} locations.',
+    btn_generate: 'Generate locations', btn_clear_input: 'Clear inputs',
+    gen_results: 'Generated locations', btn_export_excel: 'Download Excel', btn_copy: 'Copy list', col_loc_code: 'Location code',
+    msg_copied: 'Locations copied to the clipboard.', msg_copy_failed: 'Copying failed. Select the list and copy it manually.',
+    msg_fill: 'Fill in all four fields in a valid format.', msg_too_many: 'That would create {n} locations. Please narrow the ranges (maximum {max}).',
+    xl_sheet: 'Locations', xl_file: 'locations'
+  },
+  nl: {
+    doc_title: 'Locatiegenerator', page_title: 'Locatiegenerator', page_sub: 'Genereer locatiecodes volgens het patroon LL-NN-L-N en exporteer ze.',
+    gen_config: 'Patroon', gen_instructions: 'Voer losse waarden in (A of 05), lijsten met komma (A,B,C) of bereiken (A-S, [A-D], AA-AC, 00-42).',
+    lbl_ll: '1. LL — 2 letters', ph_ll: 'bijv. AA,AB of AA-AC',
+    lbl_nn: '2. NN — 2 cijfers', ph_nn: 'bijv. 01-10 of 01,05',
+    lbl_l: '3. L — 1 letter', ph_l: 'bijv. A-S of A,B',
+    lbl_n: '4. N — 1 cijfer', ph_n: 'bijv. 1-5 of 1,2',
+    preview: 'Dit maakt {n} locaties aan.',
+    btn_generate: 'Locaties genereren', btn_clear_input: 'Invoer wissen',
+    gen_results: 'Gegenereerde locaties', btn_export_excel: 'Excel downloaden', btn_copy: 'Lijst kopiëren', col_loc_code: 'Locatiecode',
+    msg_copied: 'Locaties gekopieerd naar het klembord.', msg_copy_failed: 'Kopiëren mislukt. Selecteer de lijst en kopieer handmatig.',
+    msg_fill: 'Vul alle vier velden in een geldig formaat in.', msg_too_many: 'Dat zou {n} locaties opleveren. Maak de bereiken kleiner (maximaal {max}).',
+    xl_sheet: 'Locaties', xl_file: 'locaties'
+  },
+  hr: {
+    doc_title: 'Generator lokacija', page_title: 'Generator lokacija', page_sub: 'Generiranje oznaka lokacija po uzorku LL-NN-L-N i izvoz.',
+    gen_config: 'Uzorak', gen_instructions: 'Unesite pojedinačne vrijednosti (A ili 05), popise sa zarezom (A,B,C) ili raspone (A-S, [A-D], AA-AC, 00-42).',
+    lbl_ll: '1. LL — 2 slova', ph_ll: 'npr. AA,AB ili AA-AC',
+    lbl_nn: '2. NN — 2 broja', ph_nn: 'npr. 01-10 ili 01,05',
+    lbl_l: '3. L — 1 slovo', ph_l: 'npr. A-S ili A,B',
+    lbl_n: '4. N — 1 broj', ph_n: 'npr. 1-5 ili 1,2',
+    preview: 'Bit će generirano {n} lokacija.',
+    btn_generate: 'Generiraj lokacije', btn_clear_input: 'Očisti unos',
+    gen_results: 'Generirane lokacije', btn_export_excel: 'Preuzmi Excel', btn_copy: 'Kopiraj popis', col_loc_code: 'Oznaka lokacije',
+    msg_copied: 'Lokacije su kopirane u međuspremnik.', msg_copy_failed: 'Kopiranje nije uspjelo. Označite popis i kopirajte ručno.',
+    msg_fill: 'Popunite sva četiri polja u ispravnom formatu.', msg_too_many: 'To bi stvorilo {n} lokacija. Suzite raspone (najviše {max}).',
+    xl_sheet: 'Lokacije', xl_file: 'lokacije'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+</head>
+<body data-page="locations">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://inventory/locations</div>
+  <h1 data-i18n="page_title">Location generator</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2><span data-i18n="gen_config">Pattern</span> <span class="loc-tag">LL-NN-L-N</span></h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="gen_instructions"></p>
+      <div class="grid-auto">
+        <div class="form-group">
+          <label for="inputLL" data-i18n="lbl_ll">1. LL</label>
+          <input type="text" id="inputLL" data-i18n-placeholder="ph_ll" value="AA" autocapitalize="characters" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="inputNN" data-i18n="lbl_nn">2. NN</label>
+          <input type="text" id="inputNN" data-i18n-placeholder="ph_nn" value="01-05" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="inputL" data-i18n="lbl_l">3. L</label>
+          <input type="text" id="inputL" data-i18n-placeholder="ph_l" value="A-C" autocapitalize="characters" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="inputN" data-i18n="lbl_n">4. N</label>
+          <input type="text" id="inputN" data-i18n-placeholder="ph_n" value="1-3" autocomplete="off">
+        </div>
+      </div>
+      <p class="status" id="previewCount" aria-live="polite"></p>
+      <div class="btn-group" style="margin-top:12px">
+        <button type="button" class="btn btn-primary" onclick="generateLocations()" data-i18n="btn_generate">Generate locations</button>
+        <button type="button" class="btn btn-secondary" onclick="clearInputs()" data-i18n="btn_clear_input">Clear inputs</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="resultsCard" hidden>
+    <h2><span data-i18n="gen_results">Generated locations</span> <span>(<span id="locCount">0</span>)</span></h2>
+    <div class="card-body">
+      <div class="btn-group">
+        <button type="button" class="btn btn-primary" onclick="exportToExcel()" data-i18n="btn_export_excel">Download Excel</button>
+        <button type="button" class="btn btn-secondary" onclick="copyToClipboard()" data-i18n="btn_copy">Copy list</button>
+      </div>
+      <div class="status" id="copyStatus" aria-live="polite"></div>
+    </div>
+    <div class="table-wrap">
+      <table id="locTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th data-i18n="col_loc_code">Location code</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  let generatedList = [];
+  const MAX_LOCATIONS = 50000;
+  const $ = (id) => document.getElementById(id);
+  const FIELDS = [['inputLL', false], ['inputNN', true], ['inputL', false], ['inputN', true]];
+
+  // Parses "A", "A,B,C", "A-S", "[A-D]", "AA-AC", "01-42"
+  function parseRangeInput(inputStr, isNumeric) {
+    const str = String(inputStr || '').toUpperCase().replace(/[\[\]\s]/g, '');
+    if (!str) return [];
+    const result = [];
+
+    str.split(',').filter(Boolean).forEach(part => {
+      const dash = part.indexOf('-', 1);
+      if (dash === -1) { result.push(part); return; }
+      const start = part.slice(0, dash);
+      const end = part.slice(dash + 1);
+
+      if (isNumeric || (/^\d+$/.test(start) && /^\d+$/.test(end))) {
+        const a = parseInt(start, 10), b = parseInt(end, 10);
+        if (isNaN(a) || isNaN(b)) return;
+        const pad = Math.max(start.length, end.length);
+        for (let i = Math.min(a, b); i <= Math.max(a, b); i++) result.push(String(i).padStart(pad, '0'));
+      } else if (/^[A-Z]+$/.test(start) && /^[A-Z]+$/.test(end) && start.length === end.length && start.length <= 2) {
+        // Letter ranges: A-S, or AA-AC / AA-BZ (counts through two letters like a spreadsheet)
+        const toNum = s => s.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 65), 0);
+        const toStr = (n, len) => { let s = ''; for (let k = 0; k < len; k++) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); } return s; };
+        const a = toNum(start), b = toNum(end);
+        for (let i = Math.min(a, b); i <= Math.max(a, b); i++) result.push(toStr(i, start.length));
+      } else {
+        result.push(part);
+      }
+    });
+    return [...new Set(result)];
+  }
+
+  function lists() { return FIELDS.map(([id, num]) => parseRangeInput($(id).value, num)); }
+
+  function updatePreview() {
+    const l = lists();
+    const n = l.every(x => x.length) ? l.reduce((p, x) => p * x.length, 1) : 0;
+    if (n) WSK.setText($('previewCount'), 'preview', { n: n.toLocaleString() });
+    else WSK.setText($('previewCount'), null);
+  }
+
+  function generateLocations() {
+    const [ll, nn, l, n] = lists();
+    if (!ll.length || !nn.length || !l.length || !n.length) { alert(WSK.t('msg_fill')); return; }
+    const total = ll.length * nn.length * l.length * n.length;
+    if (total > MAX_LOCATIONS) { alert(WSK.t('msg_too_many', { n: total.toLocaleString(), max: MAX_LOCATIONS.toLocaleString() })); return; }
+
+    generatedList = [];
+    ll.forEach(a => nn.forEach(b => l.forEach(c => n.forEach(d => generatedList.push(`${a}-${b}-${c}-${d}`)))));
+    renderResults();
+  }
+
+  function renderResults() {
+    $('resultsCard').hidden = false;
+    $('locCount').textContent = generatedList.length;
+    WSK.setText($('copyStatus'), null);
+    document.querySelector('#locTable tbody').innerHTML = generatedList
+      .map((code, i) => `<tr><td class="num">${i + 1}</td><td><span class="loc-tag">${WSK.esc(code)}</span></td></tr>`).join('');
+  }
+
+  function clearInputs() {
+    FIELDS.forEach(([id]) => $(id).value = '');
+    $('resultsCard').hidden = true;
+    generatedList = [];
+    updatePreview();
+    $('inputLL').focus();
+  }
+
+  function exportToExcel() {
+    if (!generatedList.length) return;
+    if (typeof XLSX === 'undefined') { alert(WSK.t('xlsx_missing')); return; }
+    const header = WSK.t('col_loc_code');
+    const ws = XLSX.utils.json_to_sheet(generatedList.map(code => ({ [header]: code })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, WSK.t('xl_sheet').slice(0, 31));
+    XLSX.writeFile(wb, `${WSK.t('xl_file')}.xlsx`);
+  }
+
+  function copyToClipboard() {
+    if (!generatedList.length) return;
+    const text = generatedList.join('\n');
+    const ok = () => WSK.setText($('copyStatus'), 'msg_copied');
+    const fail = () => WSK.setText($('copyStatus'), 'msg_copy_failed');
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(ok, fail);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
+      ta.remove();
+    }
+  }
+
+  FIELDS.forEach(([id]) => $(id).addEventListener('input', updatePreview));
+  FIELDS.forEach(([id]) => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') generateLocations(); }));
+  updatePreview();
+</script>
+</body>
+</html>

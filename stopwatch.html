@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Stopwatch · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<style>
+  .timer-display {
+    font-family: var(--display);
+    font-size: clamp(4rem, 18vw, 8rem);
+    line-height: 1;
+    text-align: center;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0, 255, 65, .55);
+    padding: 24px 8px 20px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+  }
+  .timer-state { text-align: center; font-size: 12px; letter-spacing: .2em; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }
+  .timer-state.running { color: var(--accent); }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Stopwatch', page_title: 'Stopwatch', page_sub: 'Time warehouse tasks, record laps and export to Excel.',
+    timer_title: 'Timer', state_ready: 'ready', state_running: 'running', state_paused: 'paused', state_stopped: 'stopped',
+    btn_start: 'Start', btn_resume: 'Resume', btn_pause: 'Pause', btn_lap: 'Lap', btn_stop: 'Stop',
+    recorded_laps: 'Recorded times', col_split: 'Lap time', col_total: 'Total time',
+    btn_export: 'Download Excel', btn_reset: 'Reset', confirm_reset: 'Delete all recorded times?',
+    xl_sheet: 'Timer results', xl_file: 'stopwatch'
+  },
+  nl: {
+    doc_title: 'Stopwatch', page_title: 'Stopwatch', page_sub: 'Meet magazijntaken, leg rondes vast en exporteer naar Excel.',
+    timer_title: 'Timer', state_ready: 'gereed', state_running: 'loopt', state_paused: 'gepauzeerd', state_stopped: 'gestopt',
+    btn_start: 'Start', btn_resume: 'Hervatten', btn_pause: 'Pauze', btn_lap: 'Ronde', btn_stop: 'Stop',
+    recorded_laps: 'Vastgelegde tijden', col_split: 'Rondetijd', col_total: 'Totale tijd',
+    btn_export: 'Excel downloaden', btn_reset: 'Resetten', confirm_reset: 'Alle vastgelegde tijden verwijderen?',
+    xl_sheet: 'Timerresultaten', xl_file: 'stopwatch'
+  },
+  hr: {
+    doc_title: 'Štoperica', page_title: 'Štoperica', page_sub: 'Mjerenje radnih operacija, bilježenje međuvremena i izvoz u Excel.',
+    timer_title: 'Mjerač', state_ready: 'spremno', state_running: 'mjeri', state_paused: 'pauza', state_stopped: 'zaustavljeno',
+    btn_start: 'Početak', btn_resume: 'Nastavi', btn_pause: 'Pauza', btn_lap: 'Međuvrijeme', btn_stop: 'Kraj',
+    recorded_laps: 'Zabilježena vremena', col_split: 'Međuvrijeme', col_total: 'Ukupno vrijeme',
+    btn_export: 'Preuzmi Excel', btn_reset: 'Resetiraj', confirm_reset: 'Obrisati sva zabilježena vremena?',
+    xl_sheet: 'Rezultati mjerenja', xl_file: 'stoperica'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+</head>
+<body data-page="stopwatch">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://tools/stopwatch</div>
+  <h1 data-i18n="page_title">Stopwatch</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="timer_title">Timer</h2>
+    <div class="card-body">
+      <div class="timer-display" id="display" role="timer" aria-live="off">00:00:00.0</div>
+      <div class="timer-state" id="timerState" data-i18n="state_ready">ready</div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-primary" id="btnStart" onclick="startTimer()" data-i18n="btn_start">Start</button>
+        <button type="button" class="btn btn-secondary" id="btnPause" onclick="pauseTimer()" disabled data-i18n="btn_pause">Pause</button>
+        <button type="button" class="btn btn-success" id="btnCheckpoint" onclick="addCheckpoint()" disabled data-i18n="btn_lap">Lap</button>
+        <button type="button" class="btn btn-danger" id="btnStop" onclick="stopTimer()" disabled data-i18n="btn_stop">Stop</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="resultsCard" hidden>
+    <h2 data-i18n="recorded_laps">Recorded times</h2>
+    <div class="table-wrap">
+      <table id="checkpointTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th data-i18n="col_split">Lap time</th>
+            <th data-i18n="col_total">Total time</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <div class="btn-group">
+        <button type="button" class="btn btn-primary" onclick="downloadExcel()" data-i18n="btn_export">Download Excel</button>
+        <button type="button" class="btn btn-danger" onclick="resetAll()" data-i18n="btn_reset">Reset</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  let timerInterval = null, startTime = null, elapsedTime = 0, isRunning = false, checkpoints = [], lastCheckpointElapsed = 0;
+  const $ = (id) => document.getElementById(id);
+
+  function formatTime(ms) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    const d = Math.floor((ms % 1000) / 100);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${d}`;
+  }
+
+  function currentTotal() { return elapsedTime + (isRunning ? Date.now() - startTime : 0); }
+  function updateDisplay() { $('display').textContent = formatTime(currentTotal()); }
+
+  function setState(key) {
+    WSK.setText($('timerState'), key);
+    $('timerState').classList.toggle('running', key === 'state_running');
+  }
+
+  function setButtons({ start, pause, lap, stop }) {
+    $('btnStart').disabled = !start; $('btnPause').disabled = !pause;
+    $('btnCheckpoint').disabled = !lap; $('btnStop').disabled = !stop;
+  }
+
+  function startTimer() {
+    if (isRunning) return;
+    startTime = Date.now();
+    timerInterval = setInterval(updateDisplay, 50);
+    isRunning = true;
+    setButtons({ start: false, pause: true, lap: true, stop: true });
+    setState('state_running');
+  }
+
+  function pauseTimer() {
+    if (!isRunning) return;
+    clearInterval(timerInterval);
+    elapsedTime += Date.now() - startTime;
+    isRunning = false;
+    updateDisplay();
+    setButtons({ start: true, pause: false, lap: true, stop: true });
+    WSK.setText($('btnStart'), 'btn_resume');
+    setState('state_paused');
+  }
+
+  function addCheckpoint() {
+    const total = currentTotal();
+    checkpoints.push({ split: formatTime(total - lastCheckpointElapsed), total: formatTime(total) });
+    lastCheckpointElapsed = total;
+    renderCheckpoints();
+  }
+
+  function stopTimer() {
+    pauseTimer();
+    if (lastCheckpointElapsed !== currentTotal()) addCheckpoint();
+    setButtons({ start: false, pause: false, lap: false, stop: false });
+    setState('state_stopped');
+  }
+
+  function renderCheckpoints() {
+    $('resultsCard').hidden = checkpoints.length === 0;
+    document.querySelector('#checkpointTable tbody').innerHTML = checkpoints.map((cp, i) => `
+      <tr><td class="num">${i + 1}</td><td class="num"><strong>${cp.split}</strong></td><td class="num val-good">${cp.total}</td></tr>`).join('');
+  }
+
+  function downloadExcel() {
+    if (!checkpoints.length) return;
+    if (typeof XLSX === 'undefined') { alert(WSK.t('xlsx_missing')); return; }
+    const rows = checkpoints.map((cp, i) => ({ '#': i + 1, [WSK.t('col_split')]: cp.split, [WSK.t('col_total')]: cp.total }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, WSK.t('xl_sheet').slice(0, 31));
+    XLSX.writeFile(wb, `${WSK.t('xl_file')}.xlsx`);
+  }
+
+  function resetAll() {
+    if (checkpoints.length && !confirm(WSK.t('confirm_reset'))) return;
+    clearInterval(timerInterval);
+    startTime = null; elapsedTime = 0; isRunning = false; checkpoints = []; lastCheckpointElapsed = 0;
+    $('display').textContent = '00:00:00.0';
+    renderCheckpoints();
+    setButtons({ start: true, pause: false, lap: false, stop: false });
+    WSK.setText($('btnStart'), 'btn_start');
+    setState('state_ready');
+  }
+</script>
+</body>
+</html>

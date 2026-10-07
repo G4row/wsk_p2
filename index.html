@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Warehouse Swiss Knife</title>
+<script>
+window.PAGE_I18N = {
+  en: {
+    kicker: '> PRACTICAL TOOLS. BETTER PROCESSES.',
+    h1a: 'Make warehouse work ', h1b: 'clearer and smarter.',
+    lead: 'A practical toolkit for daily operations, inventory control and continuous improvement — built around the way warehouses actually work.',
+    c1: 'Simple workflows', c2: 'Excel-friendly', c3: 'Built for the floor',
+    st_process: 'Process', st_process_sub: 'IMPROVEMENT', st_inv: 'Inventory', st_inv_sub: 'VISIBILITY',
+    ws_title: 'Explore your workspace', ws_sub: 'Choose a work area to find the tools and workflows you need.',
+    tools_av: 'TOOLS\nAVAILABLE', planned: 'PLANNED',
+    a1: 'Operations', a1_d: 'Support everyday warehouse tasks from receiving to dispatch.', a1_f: 'DAILY WORKFLOWS →',
+    t_pick: 'Picking', t_pick_d: 'Consolidate and sort picking lines',
+    t_form: 'Order Checklist', t_form_d: 'Order checks, time tracking and PDF export',
+    p_in: 'Inbound', p_in_d: 'Purchase orders arriving today',
+    p_out: 'Outbound', p_out_d: 'Trucks, orders and pallets per carrier',
+    a2: 'Inventory', a2_d: 'Improve stock visibility, product data and location structure.', a2_f: 'STOCK & STRUCTURE →',
+    t_abc: 'ABC Analysis', t_abc_d: 'Classify products and explore patterns',
+    t_inv: 'Inventory Search', t_inv_d: 'Find stock and identify empty locations',
+    t_loc: 'Location Generator', t_loc_d: 'Generate location codes and export',
+    t_lay: 'Warehouse Layout', t_lay_d: 'Rack view and floor plan of your stock',
+    p_cc: 'Cycle Counting / Master Data', p_cc_d: 'Inventory modules planned',
+    a3: 'Tools', a3_d: 'Small utilities that make warehouse work easier to measure and manage.', a3_f: 'QUICK UTILITIES →',
+    t_qr: 'QR & Barcode Generator', t_qr_d: 'Create codes for operational use',
+    t_mod: 'MOD Calculator', t_mod_d: 'Calculate full packs and remainders',
+    t_sw: 'Stopwatch', t_sw_d: 'Measure task times and export results',
+    a4: 'Administration', a4_d: 'Keep recurring checks and supporting work organized.', a4_f: 'ORGANIZATION →',
+    p_hol: 'Holidays', p_hol_d: 'Availability and holiday planning',
+    note_b: 'A toolkit that grows with the process.', note: 'WSK is a working prototype. Planned modules are shown for direction and are not clickable yet.',
+    foot: 'WAREHOUSE SWISS KNIFE · PRACTICAL THINKING · OPERATIONAL IMPROVEMENT',
+    cv_title: 'G4ROW — open CV (new tab)', sign_out: 'Sign out'
+  },
+  nl: {
+    kicker: '> PRAKTISCHE TOOLS. BETERE PROCESSEN.',
+    h1a: 'Maak magazijnwerk ', h1b: 'duidelijker en slimmer.',
+    lead: 'Een praktische toolkit voor dagelijkse operaties, voorraadbeheer en continu verbeteren — gebouwd rond hoe magazijnen echt werken.',
+    c1: 'Eenvoudige workflows', c2: 'Excel-vriendelijk', c3: 'Gemaakt voor de vloer',
+    st_process: 'Proces', st_process_sub: 'VERBETERING', st_inv: 'Voorraad', st_inv_sub: 'INZICHT',
+    ws_title: 'Verken je werkplek', ws_sub: 'Kies een werkgebied om de tools en workflows te vinden die je nodig hebt.',
+    tools_av: 'TOOLS\nBESCHIKBAAR', planned: 'GEPLAND',
+    a1: 'Operaties', a1_d: 'Ondersteun dagelijkse magazijntaken, van ontvangst tot verzending.', a1_f: 'DAGELIJKSE WORKFLOWS →',
+    t_pick: 'Picking', t_pick_d: 'Pickregels samenvoegen en sorteren',
+    t_form: 'Order controlelijst', t_form_d: 'Ordercontroles, tijdregistratie en PDF-export',
+    p_in: 'Inbound', p_in_d: 'Inkooporders die vandaag binnenkomen',
+    p_out: 'Outbound', p_out_d: 'Vrachtwagens, orders en pallets per vervoerder',
+    a2: 'Voorraad', a2_d: 'Verbeter voorraadinzicht, productdata en locatiestructuur.', a2_f: 'VOORRAAD & STRUCTUUR →',
+    t_abc: 'ABC-analyse', t_abc_d: 'Producten indelen en patronen ontdekken',
+    t_inv: 'Voorraad zoeken', t_inv_d: 'Voorraad vinden en lege locaties opsporen',
+    t_loc: 'Locatiegenerator', t_loc_d: 'Locatiecodes genereren en exporteren',
+    t_lay: 'Magazijnindeling', t_lay_d: 'Stellingweergave en plattegrond van je voorraad',
+    p_cc: 'Cycle counting / stamdata', p_cc_d: 'Voorraadmodules gepland',
+    a3: 'Tools', a3_d: 'Kleine hulpmiddelen die magazijnwerk makkelijker meetbaar en beheersbaar maken.', a3_f: 'SNELLE HULPMIDDELEN →',
+    t_qr: 'QR- & barcodegenerator', t_qr_d: 'Codes maken voor operationeel gebruik',
+    t_mod: 'MOD Calculator', t_mod_d: 'Volle verpakkingen en restanten berekenen',
+    t_sw: 'Stopwatch', t_sw_d: 'Taaktijden meten en resultaten exporteren',
+    a4: 'Administratie', a4_d: 'Houd terugkerende controles en ondersteunend werk georganiseerd.', a4_f: 'ORGANISATIE →',
+    p_hol: 'Vakanties', p_hol_d: 'Beschikbaarheid en vakantieplanning',
+    note_b: 'Een toolkit die meegroeit met het proces.', note: 'WSK is een werkend prototype. Geplande modules worden getoond als richting en zijn nog niet klikbaar.',
+    foot: 'WAREHOUSE SWISS KNIFE · PRAKTISCH DENKEN · OPERATIONELE VERBETERING',
+    cv_title: 'G4ROW — cv openen (nieuw tabblad)', sign_out: 'Uitloggen'
+  },
+  hr: {
+    kicker: '> PRAKTIČNI ALATI. BOLJI PROCESI.',
+    h1a: 'Učinite skladišni rad ', h1b: 'jasnijim i pametnijim.',
+    lead: 'Praktičan skup alata za svakodnevne operacije, kontrolu zaliha i stalno poboljšanje — izgrađen oko toga kako skladišta stvarno rade.',
+    c1: 'Jednostavni tijekovi rada', c2: 'Prilagođeno Excelu', c3: 'Napravljeno za skladišni pod',
+    st_process: 'Procesi', st_process_sub: 'POBOLJŠANJE', st_inv: 'Zalihe', st_inv_sub: 'PREGLEDNOST',
+    ws_title: 'Istražite radni prostor', ws_sub: 'Odaberite radno područje i pronađite alate i tijekove rada koji vam trebaju.',
+    tools_av: 'DOSTUPNIH\nALATA', planned: 'PLANIRANO',
+    a1: 'Operacije', a1_d: 'Podrška svakodnevnim skladišnim zadacima, od prijema do otpreme.', a1_f: 'DNEVNI TIJEKOVI →',
+    t_pick: 'Picking', t_pick_d: 'Spajanje i sortiranje picking linija',
+    t_form: 'Kontrolna lista narudžbe', t_form_d: 'Provjere narudžbe, praćenje vremena i PDF izvoz',
+    p_in: 'Ulaz robe', p_in_d: 'Narudžbenice koje danas stižu',
+    p_out: 'Izlaz robe', p_out_d: 'Kamioni, narudžbe i palete po prijevozniku',
+    a2: 'Zalihe', a2_d: 'Bolja preglednost zaliha, podataka o proizvodima i strukture lokacija.', a2_f: 'ZALIHE I STRUKTURA →',
+    t_abc: 'ABC analiza', t_abc_d: 'Razvrstavanje proizvoda i uočavanje obrazaca',
+    t_inv: 'Pretraga inventara', t_inv_d: 'Pronalazak zaliha i praznih lokacija',
+    t_loc: 'Generator lokacija', t_loc_d: 'Generiranje oznaka lokacija i izvoz',
+    t_lay: 'Raspored skladišta', t_lay_d: 'Prikaz rackova i tlocrt zaliha',
+    p_cc: 'Ciklička inventura / matični podaci', p_cc_d: 'Moduli za zalihe u planu',
+    a3: 'Alati', a3_d: 'Mali alati koji olakšavaju mjerenje i upravljanje skladišnim radom.', a3_f: 'BRZI ALATI →',
+    t_qr: 'QR i barkod generator', t_qr_d: 'Izrada kodova za operativnu upotrebu',
+    t_mod: 'MOD kalkulator', t_mod_d: 'Izračun punih pakiranja i ostataka',
+    t_sw: 'Štoperica', t_sw_d: 'Mjerenje vremena zadataka i izvoz rezultata',
+    a4: 'Administracija', a4_d: 'Organizirane redovite provjere i prateći poslovi.', a4_f: 'ORGANIZACIJA →',
+    p_hol: 'Godišnji odmori', p_hol_d: 'Dostupnost i planiranje odmora',
+    note_b: 'Alati koji rastu zajedno s procesom.', note: 'WSK je radni prototip. Planirani moduli prikazani su kao smjer razvoja i još se ne mogu otvoriti.',
+    foot: 'WAREHOUSE SWISS KNIFE · PRAKTIČNO RAZMIŠLJANJE · OPERATIVNA POBOLJŠANJA',
+    cv_title: 'G4ROW — otvori životopis (nova kartica)', sign_out: 'Odjava'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+<script>
+  // demo sign-in first: no session → start page
+  WSKSession.ready.then(s => { if (!s) location.replace('login.html'); });
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#00ff41;
+  --bg:#020602;
+  --panel:#030c05;
+  --line:#1f7a3a;
+  --line-dim:#0f4d22;
+  --text:#b6ffc8;
+  --text-soft:#a6f0bb;
+  --text-muted:#5fd47f;
+  --white:#e6ffec;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --display:VT323,'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--text);font-family:var(--mono);font-size:15px;line-height:1.6;min-height:100vh;position:relative;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--text)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:24px;padding-right:24px}
+
+/* scanlines */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0,rgba(0,0,0,.22) 1px,transparent 1px,transparent 3px)}
+
+/* header */
+.site-header{position:relative;z-index:2;border-bottom:1px solid var(--line-dim);background:rgba(2,6,2,.85)}
+.site-header .wrap{padding-top:18px;padding-bottom:18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:14px;color:var(--text)}
+.brand-mark{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--accent);color:var(--accent);font-family:var(--display);font-size:28px;text-shadow:0 0 8px var(--accent)}
+.brand-text{display:flex;flex-direction:column;line-height:1.2}
+.brand-text strong{font-size:16px;letter-spacing:.04em;color:var(--white)}
+.brand-text span{font-size:11px;letter-spacing:.22em;color:var(--text-muted)}
+.header-right{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.badge{display:inline-flex;align-items:center;min-height:40px;font-size:12px;letter-spacing:.16em;color:var(--accent);border:1px dashed var(--line);padding:6px 10px}
+[hidden]{display:none!important}
+.install-btn{background:var(--accent);color:var(--bg);border:1px solid var(--accent);font-family:inherit;font-weight:700;letter-spacing:.08em;cursor:pointer}
+.install-btn:hover{background:var(--text);border-color:var(--text)}
+[hidden]{display:none!important}
+.signout-btn{background:transparent;border:1px solid #ff6b5e;color:#ff6b5e;font-family:inherit;cursor:pointer;letter-spacing:.08em}
+.signout-btn:hover{background:rgba(255,107,94,.12)}
+a.badge:hover{border-style:solid;border-color:var(--accent);color:var(--white);background:#062b11}
+a.badge:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.lang{display:flex;border:1px solid var(--line)}
+.lang .lang-btn{min-width:44px;min-height:40px;background:transparent;color:#8fe8a8;border:0;font-family:inherit;font-size:13px;cursor:pointer}
+.lang .lang-btn + .lang-btn{border-left:1px solid var(--line)}
+.lang .lang-btn[aria-pressed="true"]{background:var(--accent);color:var(--bg);font-weight:700}
+
+/* hero */
+.hero{position:relative;z-index:1;border-bottom:1px solid var(--line-dim);overflow:hidden}
+.rain{position:absolute;inset:0;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 55%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.6) 55%,transparent 100%)}
+.rain-col{position:absolute;top:0;width:1.1em;line-height:1.05;word-break:break-all;text-align:center;color:var(--accent);
+  animation:fall linear infinite;will-change:transform}
+@keyframes fall{from{transform:translateY(-110%)}to{transform:translateY(110vh)}}
+.hero-inner{position:relative;padding-top:96px;padding-bottom:88px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:48px}
+.hero-copy{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:24px}
+.kicker{font-size:13px;letter-spacing:.2em;color:var(--accent)}
+.hero h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(3.4rem,7vw,7rem);line-height:.92;color:var(--white);text-shadow:0 0 18px rgba(0,255,65,.45)}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.cursor{display:inline-block;width:.55em;height:1em;background:var(--accent);vertical-align:-.12em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.lead{margin:0;max-width:620px;font-size:16px;color:var(--text-soft);background:rgba(2,6,2,.7)}
+.checks{display:flex;flex-wrap:wrap;gap:10px;font-size:13px}
+.checks span{border:1px solid var(--line);background:rgba(2,6,2,.8);padding:8px 12px}
+.checks b{color:var(--accent);font-weight:400}
+
+.terminal{flex:1 1 300px;min-width:0;border:1px solid var(--accent);background:rgba(2,10,4,.92);box-shadow:0 0 32px rgba(0,255,65,.18)}
+.terminal-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.18em;color:var(--text-muted)}
+.terminal-bar .on{color:var(--accent)}
+.terminal-body{padding:18px 16px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:#8fe8a8}
+.terminal-body .ok,.terminal-body .p{color:var(--accent)}
+.terminal-body .n{color:var(--white)}
+.terminal-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--line)}
+.terminal-stats div{padding:16px}
+.terminal-stats div + div{border-left:1px solid var(--line)}
+.terminal-stats .ico{font-family:var(--display);font-size:34px;line-height:1;color:var(--accent)}
+.terminal-stats strong{display:block;color:var(--white)}
+.terminal-stats small{font-size:12px;color:var(--text-muted);letter-spacing:.1em}
+
+/* workspace */
+main{position:relative;z-index:1;padding-top:80px;padding-bottom:72px;display:flex;flex-direction:column;gap:40px}
+.ws-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px}
+.ws-head .meta{font-size:12px;letter-spacing:.24em;color:var(--text-muted)}
+.ws-head h2{margin:10px 0;font-family:var(--display);font-weight:400;font-size:56px;line-height:1;color:var(--white)}
+.ws-head p{margin:0;color:var(--text-soft)}
+.count{display:flex;align-items:baseline;gap:12px;border:1px solid var(--line);padding:12px 18px}
+.count b{font-family:var(--display);font-weight:400;font-size:56px;line-height:.9;color:var(--accent);text-shadow:0 0 12px rgba(0,255,65,.5)}
+.count span{font-size:11px;letter-spacing:.2em;color:var(--text-muted);line-height:1.4}
+
+.areas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.area{display:flex;flex-direction:column;border:1px solid var(--line);background:var(--panel)}
+.area-bar{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.2em;color:var(--accent)}
+.area-bar span + span{color:#3fa35f}
+.area-intro{padding:20px 16px 8px}
+.area-intro h3{margin:0 0 6px;font-size:20px;color:var(--white)}
+.area-intro p{margin:0;font-size:13px;color:#8fe8a8}
+.tools{padding:12px 12px 16px;display:flex;flex-direction:column;gap:8px;flex-grow:1}
+.tool{display:flex;align-items:center;gap:12px;padding:12px;min-height:44px;border:1px solid var(--line-dim);color:var(--text);transition:background .15s ease,border-color .15s ease}
+.tool:hover{background:#062b11;border-color:var(--accent);color:var(--text)}
+.tool:focus-visible,.lang .lang-btn:focus-visible,.brand:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.tool .i{width:28px;text-align:center;color:var(--accent);font-size:18px}
+.tool .t{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.tool .t strong{color:var(--white);font-size:14px}
+.tool .t span{font-size:12px;color:#7fd99a}
+.tool.planned{border-style:dashed;border-color:#1a5c2c;color:#5fbf7a}
+.tool.planned:hover{background:transparent;border-color:#1a5c2c}
+.tool.planned .i,.tool.planned .t strong,.tool.planned .t span{color:#5fbf7a}
+.tool .tag{font-size:10px;letter-spacing:.16em}
+.area-foot{padding:10px 16px;border-top:1px solid var(--line);font-size:11px;letter-spacing:.2em;color:var(--text-muted)}
+
+.note{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--accent);background:#041508}
+.note .i{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--accent);color:var(--accent);font-weight:700}
+.note p{margin:0;flex:1 1 320px;color:var(--text-soft)}
+.note strong{color:var(--white)}
+
+footer{position:relative;z-index:1;border-top:1px solid var(--line-dim)}
+footer .wrap{padding-top:24px;padding-bottom:24px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;letter-spacing:.14em;color:var(--text-muted)}
+footer b{color:var(--accent);font-weight:400}
+
+@media (prefers-reduced-motion: reduce){.rain-col,.cursor{animation:none}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">W+</span>
+      <span class="brand-text">
+        <strong>Warehouse Swiss Knife</strong>
+        <span>WAREHOUSE_OPERATIONS_TOOLKIT</span>
+      </span>
+    </a>
+    <div class="header-right">
+      <span class="badge" id="userBadge" hidden></span>
+      <button type="button" class="badge signout-btn" id="btnSignOut" hidden data-i18n="sign_out">Sign out</button>
+      <button type="button" class="badge install-btn" data-install-btn hidden data-i18n="install_app">Install app</button>
+      <!-- CV link: the PDF must be in the same folder as index.html -->
+      <a class="badge" href="CV_Marko_Vidovic-Turina.pdf" target="_blank" rel="noopener" data-i18n-title="cv_title" data-i18n-aria="cv_title">[ G4ROW ]</a>
+      <div class="lang" data-lang-switcher></div>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="rain" id="rain" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <div class="kicker" data-i18n="kicker">&gt; PRACTICAL TOOLS. BETTER PROCESSES.</div>
+      <h1><span data-i18n="h1a">Make warehouse work </span><em data-i18n="h1b">clearer and smarter.</em><span class="cursor" aria-hidden="true"></span></h1>
+      <p class="lead" data-i18n="lead">A practical toolkit for daily operations, inventory control and continuous improvement — built around the way warehouses actually work.</p>
+      <div class="checks">
+        <span><b>[✓]</b> <span data-i18n="c1">Simple workflows</span></span>
+        <span><b>[✓]</b> <span data-i18n="c2">Excel-friendly</span></span>
+        <span><b>[✓]</b> <span data-i18n="c3">Built for the floor</span></span>
+      </div>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar"><span>WSK://SYSTEM</span><span class="on">● ONLINE</span></div>
+      <div class="terminal-body">
+        <div><span class="p">$</span> wsk --init workspace</div>
+        <div>loading modules ........ <span class="ok">OK</span></div>
+        <div>mounting inventory ...... <span class="ok">OK</span></div>
+        <div>tools available ......... <span class="n">11</span></div>
+      </div>
+      <div class="terminal-stats">
+        <div><div class="ico">↗</div><strong data-i18n="st_process">Process</strong><small data-i18n="st_process_sub">IMPROVEMENT</small></div>
+        <div><div class="ico">▦</div><strong data-i18n="st_inv">Inventory</strong><small data-i18n="st_inv_sub">VISIBILITY</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+  <div class="ws-head">
+    <div>
+      <div class="meta">WSK · 01 / WORKSPACE</div>
+      <h2 data-i18n="ws_title">Explore your workspace</h2>
+      <p data-i18n="ws_sub">Choose a work area to find the tools and workflows you need.</p>
+    </div>
+    <div class="count"><b>11</b><span data-i18n="tools_av" style="white-space:pre-line">TOOLS
+AVAILABLE</span></div>
+  </div>
+
+  <div class="areas">
+    <article class="area">
+      <div class="area-bar"><span>[01] OPERATIONS</span><span>./ops</span></div>
+      <div class="area-intro"><h3 data-i18n="a1">Operations</h3><p data-i18n="a1_d">Support everyday warehouse tasks from receiving to dispatch.</p></div>
+      <div class="tools">
+        <a class="tool" href="picking.html"><span class="i">⇄</span><span class="t"><strong data-i18n="t_pick">Picking</strong><span data-i18n="t_pick_d">Consolidate and sort picking lines</span></span><span>↗</span></a>
+        <a class="tool" href="inbound.html"><span class="i">↓</span><span class="t"><strong data-i18n="p_in">Inbound</strong><span data-i18n="p_in_d">Purchase orders arriving today</span></span><span>↗</span></a>
+        <a class="tool" href="outbound.html"><span class="i">↑</span><span class="t"><strong data-i18n="p_out">Outbound</strong><span data-i18n="p_out_d">Trucks, orders and pallets per carrier</span></span><span>↗</span></a>
+      </div>
+      <div class="area-foot" data-i18n="a1_f">DAILY WORKFLOWS →</div>
+    </article>
+
+    <article class="area">
+      <div class="area-bar"><span>[02] INVENTORY</span><span>./stock</span></div>
+      <div class="area-intro"><h3 data-i18n="a2">Inventory</h3><p data-i18n="a2_d">Improve stock visibility, product data and location structure.</p></div>
+      <div class="tools">
+        <a class="tool" href="abc.html"><span class="i">▥</span><span class="t"><strong data-i18n="t_abc">ABC Analysis</strong><span data-i18n="t_abc_d">Classify products and explore patterns</span></span><span>↗</span></a>
+        <a class="tool" href="inventory.html"><span class="i">▤</span><span class="t"><strong data-i18n="t_inv">Inventory Search</strong><span data-i18n="t_inv_d">Find stock and identify empty locations</span></span><span>↗</span></a>
+        <a class="tool" href="locations.html"><span class="i">⌖</span><span class="t"><strong data-i18n="t_loc">Location Generator</strong><span data-i18n="t_loc_d">Generate location codes and export</span></span><span>↗</span></a>
+        <a class="tool" href="layout.html"><span class="i">▩</span><span class="t"><strong data-i18n="t_lay">Warehouse Layout</strong><span data-i18n="t_lay_d">Rack view and floor plan of your stock</span></span><span>↗</span></a>
+        <div class="tool planned"><span class="i">＋</span><span class="t"><strong data-i18n="p_cc">Cycle Counting / Master Data</strong><span data-i18n="p_cc_d">Inventory modules planned</span></span><span class="tag" data-i18n="planned">PLANNED</span></div>
+      </div>
+      <div class="area-foot" data-i18n="a2_f">STOCK &amp; STRUCTURE →</div>
+    </article>
+
+    <article class="area">
+      <div class="area-bar"><span>[03] TOOLS</span><span>./bin</span></div>
+      <div class="area-intro"><h3 data-i18n="a3">Tools</h3><p data-i18n="a3_d">Small utilities that make warehouse work easier to measure and manage.</p></div>
+      <div class="tools">
+        <a class="tool" href="qr.html"><span class="i">▦</span><span class="t"><strong data-i18n="t_qr">QR &amp; Barcode Generator</strong><span data-i18n="t_qr_d">Create codes for operational use</span></span><span>↗</span></a>
+        <a class="tool" href="mod.html"><span class="i">÷</span><span class="t"><strong data-i18n="t_mod">MOD Calculator</strong><span data-i18n="t_mod_d">Calculate full packs and remainders</span></span><span>↗</span></a>
+        <a class="tool" href="stopwatch.html"><span class="i">◷</span><span class="t"><strong data-i18n="t_sw">Stopwatch</strong><span data-i18n="t_sw_d">Measure task times and export results</span></span><span>↗</span></a>
+      </div>
+      <div class="area-foot" data-i18n="a3_f">QUICK UTILITIES →</div>
+    </article>
+
+    <article class="area">
+      <div class="area-bar"><span>[04] ADMINISTRATION</span><span>./admin</span></div>
+      <div class="area-intro"><h3 data-i18n="a4">Administration</h3><p data-i18n="a4_d">Keep recurring checks and supporting work organized.</p></div>
+      <div class="tools">
+        <a class="tool" href="form.html"><span class="i">☷</span><span class="t"><strong data-i18n="t_form">Order Checklist</strong><span data-i18n="t_form_d">Order checks, time tracking and PDF export</span></span><span>↗</span></a>
+        <div class="tool planned"><span class="i">▦</span><span class="t"><strong data-i18n="p_hol">Holidays</strong><span data-i18n="p_hol_d">Availability and holiday planning</span></span><span class="tag" data-i18n="planned">PLANNED</span></div>
+      </div>
+      <div class="area-foot" data-i18n="a4_f">ORGANIZATION →</div>
+    </article>
+  </div>
+
+  <div class="note">
+    <span class="i" aria-hidden="true">i</span>
+    <p><strong data-i18n="note_b">A toolkit that grows with the process.</strong> <span data-i18n="note">WSK is a working prototype. Planned modules are shown for direction and are not clickable yet.</span></p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><b>WSK</b> / WORKSPACE</span>
+    <span data-i18n="foot">WAREHOUSE SWISS KNIFE · PRACTICAL THINKING · OPERATIONAL IMPROVEMENT</span>
+    <b>PROTOTYPE_</b>
+  </div>
+</footer>
+
+<script>
+// Digital rain
+(function(){
+  var rain = document.getElementById('rain');
+  if (!rain) return;
+  var chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワ0123456789WSK';
+  var n = window.innerWidth < 700 ? 22 : 44;
+  for (var i = 0; i < n; i++) {
+    var col = document.createElement('div');
+    col.className = 'rain-col';
+    var len = 12 + Math.floor(Math.random() * 20), t = '';
+    for (var j = 0; j < len; j++) t += chars[Math.floor(Math.random() * chars.length)];
+    col.textContent = t;
+    col.style.left = ((i / n) * 100 + Math.random() * 1.5).toFixed(2) + '%';
+    col.style.animationDuration = (7 + Math.random() * 11).toFixed(1) + 's';
+    col.style.animationDelay = '-' + (Math.random() * 14).toFixed(1) + 's';
+    col.style.fontSize = (12 + Math.floor(Math.random() * 9)) + 'px';
+    col.style.opacity = (0.18 + Math.random() * 0.5).toFixed(2);
+    rain.appendChild(col);
+  }
+})();
+
+</script>
+<script>
+WSKSession.ready.then(s => {
+  if (!s) return;
+  const b = document.getElementById('userBadge');
+  b.textContent = '> ' + s.user; b.hidden = false;
+  const o = document.getElementById('btnSignOut'); o.hidden = false;
+  o.addEventListener('click', () => WSKSession.signOut().then(() => location.replace('login.html')));
+});
+</script>
+</body>
+</html>

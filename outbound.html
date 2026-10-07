@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Outbound · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<style>
+  .po-head { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .kv span { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .kv b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; color: var(--white); }
+  .kv b.good { color: var(--accent); }
+  .kv b.warn { color: var(--warn); }
+  tr.unknown td { background: rgba(255, 210, 63, .06); }
+  .warn-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border: 1px dashed var(--warn); color: var(--warn); font-size: 11px; }
+  .pt { font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+  .truck { border: 1px solid var(--line, #1a5c2c); margin: 0 0 14px; }
+  .truck-h { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding: 10px 14px; background: rgba(0,255,65,.05); border-bottom: 1px solid var(--line, #1a5c2c); }
+  .truck-h strong { font-family: var(--display); font-weight: 400; font-size: 24px; color: var(--white); }
+  .truck-h .m { font-size: 12px; color: var(--muted); letter-spacing: .08em; }
+  .truck-h .tot { margin-left: auto; color: var(--accent); font-family: var(--display); font-size: 24px; }
+  .formula { padding: 8px 14px; font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line, #1a5c2c); }
+  .formula b { color: var(--accent); font-weight: 400; }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Outbound', page_title: 'Outbound', page_sub: 'Choose a carrier to see which shipments go on each truck and how many pallets to load.',
+    sel_title: 'Carrier', lbl_carrier: 'Carrier', lbl_date: 'Date', opt_choose_carrier: '— choose a carrier —', opt_all_dates: 'All dates',
+    opt_carrier: '{c} · trucks: {t} · pallets: {p}',
+    k_trucks: 'Trucks', k_orders: 'Orders', k_pal: 'Pallets', k_clients: 'Clients',
+    loads_title: 'Loads', col_order: 'Order', col_client: 'Client', col_pal: 'Pallets', col_lines: 'Lines', col_pcs: 'Pcs',
+    t_load: 'Loading {time}', t_dock: 'Dock {dock}', t_pal: '{n} pall',
+    excel_title: 'Import from Excel', excel_desc: 'Same columns as the Outbound sheet: A = carrier, B = truck, C = date, D = loading time, E = dock, F = order, G = client ID, H = pallets.',
+    no_data: 'No outbound data. Sign in with the master workbook or upload a file.', choose: 'Choose a carrier.'
+  },
+  nl: {
+    doc_title: 'Uitgaand', page_title: 'Uitgaand', page_sub: 'Kies een vervoerder om te zien welke zendingen op elke vrachtwagen gaan en hoeveel pallets er geladen worden.',
+    sel_title: 'Vervoerder', lbl_carrier: 'Vervoerder', lbl_date: 'Datum', opt_choose_carrier: '— kies een vervoerder —', opt_all_dates: 'Alle datums',
+    opt_carrier: '{c} · vrachtwagens: {t} · pallets: {p}',
+    k_trucks: 'Vrachtwagens', k_orders: 'Orders', k_pal: 'Pallets', k_clients: 'Klanten',
+    loads_title: 'Ladingen', col_order: 'Order', col_client: 'Klant', col_pal: 'Pallets', col_lines: 'Regels', col_pcs: 'St',
+    t_load: 'Laden {time}', t_dock: 'Dock {dock}', t_pal: '{n} pall',
+    excel_title: 'Importeren uit Excel', excel_desc: 'Dezelfde kolommen als het blad Outbound: A = vervoerder, B = vrachtwagen, C = datum, D = laadtijd, E = dock, F = order, G = klant-ID, H = pallets.',
+    no_data: 'Geen uitgaande gegevens. Log in met het hoofdbestand of upload een bestand.', choose: 'Kies een vervoerder.'
+  },
+  hr: {
+    doc_title: 'Izlaz robe', page_title: 'Izlaz robe', page_sub: 'Odaberite prijevoznika i pogledajte koje pošiljke idu na koji kamion i koliko paleta treba utovariti.',
+    sel_title: 'Prijevoznik', lbl_carrier: 'Prijevoznik', lbl_date: 'Datum', opt_choose_carrier: '— odaberite prijevoznika —', opt_all_dates: 'Svi datumi',
+    opt_carrier: '{c} · kamioni: {t} · palete: {p}',
+    k_trucks: 'Kamioni', k_orders: 'Narudžbe', k_pal: 'Palete', k_clients: 'Klijenti',
+    loads_title: 'Utovari', col_order: 'Narudžba', col_client: 'Klijent', col_pal: 'Palete', col_lines: 'Linije', col_pcs: 'Kom',
+    t_load: 'Utovar {time}', t_dock: 'Dok {dock}', t_pal: '{n} pal',
+    excel_title: 'Uvoz iz Excela', excel_desc: 'Isti stupci kao list Outbound: A = prijevoznik, B = kamion, C = datum, D = vrijeme utovara, E = dok, F = narudžba, G = ID klijenta, H = palete.',
+    no_data: 'Nema podataka o izlazu. Prijavite se s glavnim Excelom ili učitajte datoteku.', choose: 'Odaberite prijevoznika.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="outbound">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://operations/outbound</div>
+  <h1 data-i18n="page_title">Outbound</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="sel_title">Carrier</h2>
+    <div class="card-body">
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="selCarrier" data-i18n="lbl_carrier">Carrier</label>
+          <select id="selCarrier"></select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="selDate" data-i18n="lbl_date">Date</label>
+          <select id="selDate" disabled></select>
+        </div>
+      </div>
+      <div class="status" id="selInfo" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card" id="loadCard" hidden>
+    <h2><span data-i18n="loads_title">Loads</span> <span id="loadTitle" style="color: var(--white)"></span></h2>
+    <div class="card-body">
+      <div class="po-head" id="loadHead"></div>
+    </div>
+    <div class="card-body" id="trucks"></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="excel_title">Import from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const str = (v) => v == null ? '' : String(v).trim();
+  const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  const fmtN = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+
+  /* Outbound rows: A carrier, B truck, C date, D loading, E dock, F order, G client, H pallets */
+  let ROWS = [];
+  let CLIENTS = new Map(), ORDERS = new Map();
+
+  function loadRows(data) {
+    ROWS = (data.rows || []).slice(1).filter(r => r && str(r[0]) && str(r[5]));
+    CLIENTS = new Map(WSKSession.sheet('clients').map(r => [str(r[0]), str(r[1])]));
+    // Orders: A order, B line, C client, D date, E priority, F product, G quantity, H carrier
+    ORDERS = new Map();
+    WSKSession.sheet('orders').forEach(r => {
+      const o = str(r[0]); if (!o) return;
+      const x = ORDERS.get(o) || { lines: 0, pcs: 0 }; x.lines++; x.pcs += num(r[6]); ORDERS.set(o, x);
+    });
+    fillCarriers();
+  }
+
+  const source = WSKSession.wireModule({
+    page: 'outbound', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { ROWS = []; fillCarriers(); },
+    fromMain: () => {
+      const r = WSKSession.sheet('outbound');
+      return r.length ? { rows: [['carrier'], ...r] } : null;
+    }
+  });
+  WSKSession.ready.then(() => { if (!ROWS.length) fillCarriers(); });
+
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0) };
+      loadRows(data);
+      WSK.setText($('excelStatus'), 'excel_loaded', { n: ROWS.length });
+      source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  function fillCarriers() {
+    const keep = $('selCarrier').value;
+    const map = new Map();
+    ROWS.forEach(r => {
+      const c = str(r[0]), x = map.get(c) || { trucks: new Set(), p: 0 };
+      x.trucks.add(str(r[1]) + '|' + str(r[2])); x.p += num(r[7]); map.set(c, x);
+    });
+    const ids = [...map.keys()].sort();
+    $('selCarrier').innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_carrier'))}</option>` +
+      ids.map(c => `<option value="${WSK.esc(c)}">${WSK.esc(WSK.t('opt_carrier', { c, t: map.get(c).trucks.size, p: map.get(c).p }))}</option>`).join('');
+    $('selCarrier').value = ids.includes(keep) ? keep : (ids.length === 1 ? ids[0] : '');
+    $('selCarrier').disabled = !ids.length;
+    WSK.setText($('selInfo'), ids.length ? 'choose' : 'no_data');
+    fillDates();
+  }
+
+  function fillDates() {
+    const c = $('selCarrier').value, sel = $('selDate'), keep = sel.value;
+    const dates = [...new Set(ROWS.filter(r => str(r[0]) === c).map(r => str(r[2])))].sort();
+    sel.innerHTML = `<option value="">${WSK.esc(WSK.t('opt_all_dates'))}</option>` +
+      dates.map(d => `<option value="${WSK.esc(d)}">${WSK.esc(d)}</option>`).join('');
+    sel.disabled = !c || dates.length < 2;
+    sel.value = dates.includes(keep) ? keep : '';
+    render();
+  }
+
+  function render() {
+    const c = $('selCarrier').value, d = $('selDate').value;
+    if (!c) { $('loadCard').hidden = true; if (ROWS.length) WSK.setText($('selInfo'), 'choose'); return; }
+    $('selInfo').textContent = '';
+    const rows = ROWS.filter(r => str(r[0]) === c && (!d || str(r[2]) === d));
+    const trucks = new Map();
+    rows.forEach(r => {
+      const k = str(r[1]) + '|' + str(r[2]);
+      const t = trucks.get(k) || { truck: str(r[1]), date: str(r[2]), time: str(r[3]), dock: str(r[4]), orders: [] };
+      t.orders.push({ order: str(r[5]), client: str(r[6]), pal: num(r[7]) });
+      trucks.set(k, t);
+    });
+    const list = [...trucks.values()].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time) || a.truck.localeCompare(b.truck));
+    const totPal = rows.reduce((s, r) => s + num(r[7]), 0);
+    const clients = new Set(rows.map(r => str(r[6])));
+    const kv = (k, v, cls) => `<div class="kv"><span>${WSK.esc(WSK.t(k))}</span><b class="${cls || ''}">${WSK.esc(String(v))}</b></div>`;
+    $('loadHead').innerHTML = kv('k_trucks', list.length) + kv('k_orders', rows.length) + kv('k_clients', clients.size) + kv('k_pal', totPal, 'good');
+    $('loadTitle').textContent = '· ' + c;
+    $('trucks').innerHTML = list.map(t => {
+      const sum = t.orders.reduce((s, o) => s + o.pal, 0);
+      const trs = t.orders.map(o => {
+        const od = ORDERS.get(o.order);
+        return `<tr><td><strong>${WSK.esc(o.order)}</strong></td>
+          <td>${WSK.esc(o.client)} <span class="muted">${WSK.esc(CLIENTS.get(o.client) || '')}</span></td>
+          <td class="num">${od ? od.lines : '—'}</td><td class="num">${od ? fmtN(od.pcs) : '—'}</td>
+          <td class="num val-good">${o.pal}</td></tr>`;
+      }).join('');
+      const formula = t.orders.map(o => `${WSK.esc(o.order)}: ${WSK.esc(WSK.t('t_pal', { n: o.pal }))}`).join(' + ');
+      return `<div class="truck">
+        <div class="truck-h"><strong>${WSK.esc(t.truck)}</strong>
+          <span class="m">${WSK.esc(t.date)}</span>
+          <span class="m">${WSK.esc(WSK.t('t_load', { time: t.time || '--:--' }))}</span>
+          <span class="m">${WSK.esc(WSK.t('t_dock', { dock: t.dock || '—' }))}</span>
+          <span class="tot">${WSK.esc(WSK.t('t_pal', { n: sum }))}</span></div>
+        <div class="table-wrap"><table><thead><tr>
+          <th>${WSK.esc(WSK.t('col_order'))}</th><th>${WSK.esc(WSK.t('col_client'))}</th>
+          <th>${WSK.esc(WSK.t('col_lines'))}</th><th>${WSK.esc(WSK.t('col_pcs'))}</th><th>${WSK.esc(WSK.t('col_pal'))}</th>
+        </tr></thead><tbody>${trs}</tbody></table></div>
+        <div class="formula">[${formula}] = <b>${WSK.esc(WSK.t('t_pal', { n: sum }))}</b></div>
+      </div>`;
+    }).join('');
+    $('loadCard').hidden = false;
+  }
+
+  $('selCarrier').addEventListener('change', () => { $('selDate').value = ''; fillDates(); });
+  $('selDate').addEventListener('change', render);
+  document.addEventListener('wsk:langchange', fillCarriers);
+</script>
+</body>
+</html>

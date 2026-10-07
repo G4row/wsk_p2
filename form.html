@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Order Checklist · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ---------- screen ---------- */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .toolbar .hint { margin: 0; flex: 1 1 260px; }
+  .toolbar .btn { flex: 0 1 auto; }
+
+  .sheet { background: var(--panel); border: 1px solid var(--line); padding: 20px; }
+  .sheet-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 16px;
+  }
+  .sheet-head .tag { font-size: 11px; letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+  .sheet-head h2 { font-family: var(--display); font-weight: 400; font-size: clamp(1.8rem, 5vw, 2.4rem); line-height: 1; color: var(--white); margin-top: 4px; }
+  .sheet-logo { text-align: right; line-height: 1.1; flex-shrink: 0; }
+  .sheet-logo b { display: block; font-size: 18px; letter-spacing: .2em; color: var(--muted); }
+  .sheet-logo small { font-size: 10px; letter-spacing: .2em; color: var(--muted); }
+
+  .dossier { border: 1px solid var(--line); background: var(--panel-2); padding: 14px; margin-bottom: 18px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .dossier .form-group { margin: 0; }
+  .dossier .main label { color: var(--accent); font-weight: 700; }
+  .dossier .main input { border-color: var(--accent); font-weight: 700; }
+
+  .sec-title { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 18px 0 8px; }
+  .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--accent); padding-bottom: 6px; margin-bottom: 10px; }
+  .sec-head .sec-title { margin: 0; }
+  .sec-head .pg { font-size: 11px; color: var(--muted); letter-spacing: .14em; }
+
+  .form-table { border: 1px solid var(--line); }
+  .form-table th, .form-table td { border: 1px solid var(--line-dim); padding: 6px 8px; }
+  .form-table td.in { padding: 0; }
+  .form-table td.in input { border: 0; min-height: 40px; background: transparent; }
+  .form-table td.in input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
+  .form-table td.chk { text-align: center; width: 48px; }
+  .form-table th.c { text-align: center; }
+  .form-table .w-time { width: 130px; }
+  .form-table .w-qty { width: 130px; }
+  .form-table .n { color: var(--muted); margin-right: 4px; }
+  .form-table .note { font-size: 11px; color: var(--muted); margin-left: 4px; }
+  .form-table .sub-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--soft); }
+  .form-table .sub-line input { width: 120px; min-height: 32px; padding: 4px 6px; font-size: 13px; }
+  .form-table tr.group td { background: var(--panel-2); color: var(--accent); font-weight: 700; letter-spacing: .06em; }
+  .form-table tr.sign td { font-style: italic; color: var(--soft); font-size: 12px; }
+  .form-table tr.sign td.in input { font-style: normal; }
+
+  .remarks { margin-top: 16px; }
+  .sig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; border: 1px solid var(--line); padding: 14px; background: var(--panel-2); }
+  .sig-line { border-bottom: 1px solid var(--soft); height: 36px; }
+  .page-break { height: 28px; }
+
+  /* ---------- print: plain paper, compact, 2 pages ---------- */
+  @media print {
+    @page { size: A4; margin: 10mm; }
+    html, body { background: #fff !important; }
+    body { font-family: Arial, Helvetica, sans-serif !important; font-size: 9.5px !important; color: #000 !important; }
+    .container { max-width: none; margin: 0; padding: 0; }
+    .sheet { border: 0; background: #fff; padding: 0; }
+    .sheet, .sheet * { color: #000 !important; text-shadow: none !important; box-shadow: none !important; font-family: Arial, Helvetica, sans-serif !important; }
+    .sheet-head { border-bottom-color: #000; padding-bottom: 4px; margin-bottom: 8px; }
+    .sheet-head h2 { font-size: 16px; font-weight: 900; }
+    .sheet-logo b, .sheet-logo small, .sheet-head .tag, .sec-head .pg, .form-table .n, .form-table .note { color: #64748b !important; }
+    .dossier { background: #f1f5f9 !important; border: 1px solid #94a3b8; padding: 6px; margin-bottom: 8px; gap: 6px; }
+    .sec-title { font-size: 10px; margin: 8px 0 4px; }
+    .sec-head { border-bottom-color: #000; }
+    input[type="text"], input[type="date"], textarea {
+      min-height: 0 !important; padding: 1px 3px !important; font-size: 9px !important;
+      background: transparent !important; border: 1px solid #9ca3af !important; color: #000 !important;
+    }
+    textarea { height: 48px; }
+    .form-table { border: 1px solid #94a3b8; }
+    .form-table th, .form-table td { padding: 2px 4px !important; font-size: 9px !important; border: 1px solid #cbd5e1 !important; }
+    .form-table th { background: #f1f5f9 !important; letter-spacing: 0; }
+    .form-table td.in input { border: 0 !important; min-height: 16px !important; }
+    .form-table tr.group td { background: #e2e8f0 !important; }
+    .form-table .sub-line { margin-top: 2px; font-size: 8.5px; }
+    .form-table .sub-line input { min-height: 0 !important; }
+    tbody tr:hover td { background: transparent !important; }
+    .sig-grid { background: #f8fafc !important; border: 1px solid #94a3b8; padding: 6px; margin-top: 8px; }
+    .sig-line { border-bottom-color: #000; height: 24px; }
+    .page-break { height: 0; break-before: page; page-break-before: always; }
+    input[type="checkbox"] { width: 11px; height: 11px; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Order Checklist', page_title: 'Order checklist',
+    page_sub: 'Checklist and time tracking per order. The screen follows your language; the printout is always in Dutch.',
+    btn_print: 'Print / save as PDF', btn_clear: 'Clear form', print_note: 'The PDF is always printed in Dutch, on 2 pages.',
+    confirm_clear: 'Clear all fields of this form?',
+    demo: 'Demo presentation', form_title: 'Shipment dossier & order inquiry',
+    lbl_dossier: 'Dossier no. / order number', lbl_date: 'Date', lbl_customer: 'Customer',
+    sec1: '1. Time & responsibility tracking', th_phase: 'Phase / task', th_date_name: 'Date / name', th_time: 'Time spent',
+    s1: 'Barcodes scanned by', s2: 'Order picked by', s3: 'Order built up by', s4: 'Order checked by', s4_sub: 'Set ready on / quantity:',
+    s5: 'Order loaded by', s6: 'Cargo secured by', s7: 'Stowage checked by (warehouse)', s8: 'Stowage checked by (office)', s9: 'Photos checked by',
+    lbl_remarks: 'Warehouse remarks / special instructions',
+    sec2: '2. Activity checklist & worker signatures', page2: 'Page 2 / 2',
+    th_item: 'Item / task', th_yes: 'Y', th_no: 'N', th_qty: 'Quantity', yes: 'Yes', no: 'No',
+    g1: 'I. Order picking', p1: 'Hand picking < 23 kg', p2: 'Hand picking < 46 kg', p3: 'Hand picking > 46 kg',
+    signed: 'Filled in / worker signature',
+    g2: 'II. Staging', k1: 'Handled by hand to build up', k2: 'Pallets clamped', k3: 'Pallets wrapped', k3_note: '(large wrap, top, black)',
+    k4: 'Straps / bands used', k5: 'Labels applied', k5_note: '(A4, address, ADR)', k6: 'Labels removed / number of pallets',
+    k7: 'Standard pallets used', k7_note: '(real, fake)', k8: 'Customer pallets used', k9: 'Barcodes scanned / number of QR codes', k10: 'Empty boxes / pouches used',
+    g3: 'III. Loading', l1: 'Pallets loaded', l2: 'Pallets loaded with clamp', l3: 'Loose cartons loaded', l4: '20ft / 40ft container loaded by hand',
+    l5: 'Stowage material (beams, boards, bags)', l6: 'Labels applied / photos taken',
+    sig_supervisor: 'Warehouse supervisor signature', sig_driver: 'Driver / receiver signature'
+  },
+  nl: {
+    doc_title: 'Order controlelijst', page_title: 'Order controlelijst',
+    page_sub: 'Controlelijst en tijdregistratie per order. Het scherm volgt je taal; de afdruk is altijd in het Nederlands.',
+    btn_print: 'Afdrukken / opslaan als PDF', btn_clear: 'Formulier wissen', print_note: 'De PDF wordt altijd in het Nederlands afgedrukt, op 2 pagina\u2019s.',
+    confirm_clear: 'Alle velden van dit formulier wissen?',
+    demo: 'Demo presentatie', form_title: 'Zending dossier & order vragenlijst',
+    lbl_dossier: 'Dossier nr. / ordernummer', lbl_date: 'Datum', lbl_customer: 'Klant',
+    sec1: '1. Tijd- en verantwoordelijkheidsregistratie', th_phase: 'Fase / taak', th_date_name: 'Datum / naam', th_time: 'Bestede tijd',
+    s1: 'Barcodes gescand door', s2: 'Orderpicking door', s3: 'Order opgebouwd door', s4: 'Order gecheckt door', s4_sub: 'Klaargezet op / aantal:',
+    s5: 'Order geladen door', s6: 'Afgestuwd door', s7: 'Stuwage gecontroleerd door (loods)', s8: 'Stuwage gecontroleerd door (kantoor)', s9: 'Foto\u2019s gecheckt door',
+    lbl_remarks: 'Opmerkingen / speciale instructies',
+    sec2: '2. Activiteiten controlelijst & handtekeningen', page2: 'Pagina 2 / 2',
+    th_item: 'Omschrijving / taak', th_yes: 'J', th_no: 'N', th_qty: 'Aantal', yes: 'Ja', no: 'Nee',
+    g1: 'I. Orderpicking', p1: 'Hand picken < 23 kg', p2: 'Hand picken < 46 kg', p3: 'Hand picken > 46 kg',
+    signed: 'Ingevuld / handtekening',
+    g2: 'II. Klaarzetten', k1: 'Vastgehad om op te bouwen', k2: 'Pallets geklemd', k3: 'Pallets gewikkeld', k3_note: '(grote wikkel, top, zwart)',
+    k4: 'Straps / bandjes gebruikt', k5: 'Labels aangebracht', k5_note: '(A4, adres, ADR)', k6: 'Labels verwijderd / aantal pallets',
+    k7: 'Standaard pallets gebruikt', k7_note: '(echt, nep)', k8: 'Pallets van de klant gebruikt', k9: 'Barcodes gescand of aantal QR-codes', k10: 'Lege dozen / zakken gebruikt',
+    g3: 'III. Laden', l1: 'Pallets geladen', l2: 'Pallets geladen met de klem', l3: 'Losse cartons geladen', l4: '20ft / 40ft handwerk geladen',
+    l5: 'Stuwmateriaal (balken, platen, zakken)', l6: 'Labels aangebracht / foto\u2019s gemaakt',
+    sig_supervisor: 'Handtekening voorman', sig_driver: 'Handtekening chauffeur'
+  },
+  hr: {
+    doc_title: 'Kontrolna lista narudžbe', page_title: 'Kontrolna lista narudžbe',
+    page_sub: 'Kontrolna lista i praćenje vremena po narudžbi. Ekran prati odabrani jezik, a ispis je uvijek na nizozemskom.',
+    btn_print: 'Ispiši / spremi kao PDF', btn_clear: 'Očisti obrazac', print_note: 'PDF se uvijek ispisuje na nizozemskom, na 2 stranice.',
+    confirm_clear: 'Obrisati sva polja ovog obrasca?',
+    demo: 'Demo prezentacija', form_title: 'Upitnik o pošiljci / dossier',
+    lbl_dossier: 'Dossier br. / broj narudžbe', lbl_date: 'Datum', lbl_customer: 'Klijent',
+    sec1: '1. Praćenje vremena i odgovornosti', th_phase: 'Faza / zadatak', th_date_name: 'Datum / ime radnika', th_time: 'Utrošeno vrijeme',
+    s1: 'Barkodove skenirao', s2: 'Narudžbu prikupio (picking)', s3: 'Narudžbu složio / sastavio', s4: 'Narudžbu provjerio', s4_sub: 'Pripremljeno na / količina:',
+    s5: 'Narudžbu utovario', s6: 'Teret osigurao / učvrstio', s7: 'Osiguranje tereta provjerio (skladište)', s8: 'Osiguranje tereta provjerio (ured)', s9: 'Fotografije provjerio',
+    lbl_remarks: 'Napomene skladišta / posebne upute pošiljke',
+    sec2: '2. Kontrolna lista aktivnosti i potpisi radnika', page2: 'Stranica 2 / 2',
+    th_item: 'Stavka / zadatak', th_yes: 'D', th_no: 'N', th_qty: 'Količina', yes: 'Da', no: 'Ne',
+    g1: 'I. Prikupljanje narudžbe', p1: 'Ručni prikup < 23 kg', p2: 'Ručni prikup < 46 kg', p3: 'Ručni prikup > 46 kg',
+    signed: 'Popunio / potpis radnika',
+    g2: 'II. Priprema za otpremu', k1: 'Ručno rukovano radi slaganja', k2: 'Palete stegnute stezaljkom', k3: 'Palete omotane folijom', k3_note: '(velika, gornja, crna)',
+    k4: 'Upotrijebljene trake za vezivanje', k5: 'Postavljene etikete', k5_note: '(A4, adresa, ADR)', k6: 'Etikete uklonjene / broj paleta',
+    k7: 'Korištene standardne palete', k7_note: '(prave, lažne)', k8: 'Korištene palete kupca', k9: 'Skenirani barkodovi / broj QR kodova', k10: 'Korištene prazne kutije / vrećice',
+    g3: 'III. Utovar', l1: 'Palete utovarene', l2: 'Palete utovarene stezaljkom', l3: 'Pojedinačni kartoni utovareni', l4: 'Ručno utovaren 20ft / 40ft kontejner',
+    l5: 'Materijal za osiguranje (grede, ploče, jastuci)', l6: 'Postavljene etikete / fotografije napravljene',
+    sig_supervisor: 'Potpis voditelja skladišta', sig_driver: 'Potpis vozača / primatelja'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+</head>
+<body data-page="form">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://admin/order-checklist</div>
+  <h1 data-i18n="page_title">Order checklist</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card no-print">
+    <div class="card-body toolbar">
+      <p class="hint" data-i18n="print_note"></p>
+      <button type="button" class="btn btn-secondary" onclick="clearForm()" data-i18n="btn_clear">Clear form</button>
+      <button type="button" class="btn btn-primary" onclick="window.print()" data-i18n="btn_print">Print / save as PDF</button>
+    </div>
+  </section>
+
+  <form class="sheet" id="wmsForm" onsubmit="return false" autocomplete="off">
+    <!-- ===== PAGE 1 ===== -->
+    <div class="sheet-head">
+      <div>
+        <div class="tag" data-i18n="demo">Demo presentation</div>
+        <h2 data-i18n="form_title">Shipment dossier &amp; order inquiry</h2>
+      </div>
+      <div class="sheet-logo"><b>LOGISTICS</b><small>MANAGEMENT</small></div>
+    </div>
+
+    <div class="dossier">
+      <div class="form-group main">
+        <label for="fDossier" data-i18n="lbl_dossier">Dossier no.</label>
+        <input type="text" id="fDossier">
+      </div>
+      <div class="form-group">
+        <label for="fDate" data-i18n="lbl_date">Date</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="form-group">
+        <label for="fCustomer" data-i18n="lbl_customer">Customer</label>
+        <input type="text" id="fCustomer">
+      </div>
+    </div>
+
+    <h3 class="sec-title" data-i18n="sec1">1. Time &amp; responsibility tracking</h3>
+    <div class="table-wrap">
+      <table class="form-table">
+        <thead>
+          <tr>
+            <th data-i18n="th_phase">Phase / task</th>
+            <th data-i18n="th_date_name">Date / name</th>
+            <th class="c w-time" data-i18n="th_time">Time spent</th>
+          </tr>
+        </thead>
+        <tbody id="timeRows"></tbody>
+      </table>
+    </div>
+
+    <div class="remarks">
+      <label for="fRemarks" data-i18n="lbl_remarks">Remarks</label>
+      <textarea id="fRemarks" rows="3"></textarea>
+    </div>
+
+    <div class="page-break" aria-hidden="true"></div>
+
+    <!-- ===== PAGE 2 ===== -->
+    <div class="sec-head">
+      <h3 class="sec-title" data-i18n="sec2">2. Activity checklist</h3>
+      <span class="pg" data-i18n="page2">Page 2 / 2</span>
+    </div>
+    <div class="table-wrap">
+      <table class="form-table">
+        <thead>
+          <tr>
+            <th data-i18n="th_item">Item / task</th>
+            <th class="c" data-i18n="th_yes">Y</th>
+            <th class="c" data-i18n="th_no">N</th>
+            <th class="w-qty" data-i18n="th_qty">Quantity</th>
+          </tr>
+        </thead>
+        <tbody id="checkRows"></tbody>
+      </table>
+    </div>
+
+    <div class="sig-grid">
+      <div>
+        <label data-i18n="sig_supervisor">Warehouse supervisor signature</label>
+        <div class="sig-line"></div>
+      </div>
+      <div>
+        <label data-i18n="sig_driver">Driver / receiver signature</label>
+        <div class="sig-line"></div>
+      </div>
+    </div>
+  </form>
+</main>
+
+<nav class="nav-bar no-print" data-nav></nav>
+
+<script>
+  // ----- build the tables (texts come from PAGE_I18N via data-i18n) -----
+  const TIME_ROWS = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'];
+  document.getElementById('timeRows').innerHTML = TIME_ROWS.map((key, i) => `
+    <tr>
+      <td><span class="n">${i + 1})</span><span data-i18n="${key}"></span>
+        ${key === 's4' ? `<div class="sub-line"><span data-i18n="s4_sub"></span><input type="text" data-i18n-aria="s4_sub"></div>` : ''}
+      </td>
+      <td class="in"><input type="text" data-i18n-aria="th_date_name"></td>
+      <td class="in"><input type="text" data-i18n-aria="th_time" style="text-align:center"></td>
+    </tr>`).join('');
+
+  const GROUPS = [
+    { title: 'g1', items: ['p1', 'p2', 'p3'] },
+    { title: 'g2', items: ['k1', 'k2', ['k3', 'k3_note'], 'k4', ['k5', 'k5_note'], 'k6', ['k7', 'k7_note'], 'k8', 'k9', 'k10'] },
+    { title: 'g3', items: ['l1', 'l2', 'l3', 'l4', 'l5', 'l6'] }
+  ];
+  let cb = 0;
+  document.getElementById('checkRows').innerHTML = GROUPS.map(g => `
+    <tr class="group"><td colspan="4" data-i18n="${g.title}"></td></tr>
+    ${g.items.map(item => {
+      const [key, note] = Array.isArray(item) ? item : [item];
+      cb++;
+      return `<tr>
+        <td><span data-i18n="${key}"></span>${note ? `<span class="note" data-i18n="${note}"></span>` : ''}</td>
+        <td class="chk"><input type="checkbox" name="yn${cb}" data-i18n-aria="yes" onchange="exclusive(this)"></td>
+        <td class="chk"><input type="checkbox" name="yn${cb}" data-i18n-aria="no" onchange="exclusive(this)"></td>
+        <td class="in"><input type="text" data-i18n-aria="th_qty"></td>
+      </tr>`;
+    }).join('')}
+    <tr class="sign"><td data-i18n="signed"></td><td class="in" colspan="3"><input type="text" data-i18n-aria="signed"></td></tr>
+  `).join('');
+
+  // Yes / No in the same row exclude each other
+  function exclusive(box) {
+    if (!box.checked) return;
+    document.querySelectorAll(`input[name="${box.name}"]`).forEach(other => { if (other !== box) other.checked = false; });
+  }
+
+  function clearForm() {
+    if (confirm(WSK.t('confirm_clear'))) document.getElementById('wmsForm').reset();
+  }
+
+  // ----- printing: always Dutch, then back to the chosen language -----
+  let langBeforePrint = null;
+  window.addEventListener('beforeprint', () => {
+    langBeforePrint = WSK.getLang();
+    if (langBeforePrint !== 'nl') WSK.setLanguage('nl', { persist: false });
+  });
+  window.addEventListener('afterprint', () => {
+    if (langBeforePrint && langBeforePrint !== 'nl') WSK.setLanguage(langBeforePrint, { persist: false });
+    langBeforePrint = null;
+  });
+</script>
+</body>
+</html>

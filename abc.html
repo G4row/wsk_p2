@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>ABC Analysis · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'ABC Analysis', page_title: 'ABC analysis & locations',
+    page_sub: 'Separate and combined ABC classification (33% / 34% / 33%) with location search.',
+    excel_title: 'Import from Excel',
+    excel_abc_desc: 'Sheet 1: A = name, B = weight, C = sales, D = price. Locations in columns E (name) and F (group), or on sheet 2 (A = name, B = group), are loaded automatically.',
+    manual_prod_title: 'Manual product entry', lbl_prod_name: 'Product name', ph_prod_name: 'e.g. Item X',
+    lbl_weight: 'Weight (kg)', ph_weight: '0.00', lbl_sales: 'Sales (pcs)', ph_sales: '0', lbl_price: 'Price (€)', ph_price: '0.00',
+    btn_add_prod: 'Add product', btn_run_abc: 'Run ABC analysis (33 / 34 / 33)',
+    prepared_prods: 'Products', lbl_sort_prods: 'Sort products by',
+    opt_sort_name_asc: 'Product name (A–Z)', opt_sort_comb: 'Combined category [weight + sales]',
+    opt_sort_weight: 'ABC weight (A → C)', opt_sort_sales: 'ABC sales (A → C)', opt_sort_price: 'ABC price (A → C)',
+    col_prod: 'Product', col_cat_comb: 'Combined [W+S]', col_weight_abc: 'Weight [ABC]', col_sales_abc: 'Sales [ABC]', col_price_abc: 'Price [ABC]',
+    loc_search_title: 'Search & add locations', lbl_loc_name: 'Location name', ph_loc_name: 'e.g. C324D',
+    lbl_loc_group: 'Location group', btn_add_loc: 'Add location',
+    lbl_filter_group: 'Location group', opt_all_groups: 'All groups',
+    lbl_filter_letter: '1st letter (A–Z)', opt_all_letters: 'All letters',
+    lbl_filter_level: 'Level (4th character, 0–9)', opt_all_levels: 'All levels',
+    loc_results: 'Locations found', col_loc_name: 'Location', col_group: 'Group', col_1st_letter: '1st letter', col_3rd_num: 'Level (4th char)',
+    unit_pcs: 'pcs', not_classified: 'not classified',
+    msg_empty_prods: 'No products entered for ABC analysis.', msg_enter_name: 'Please enter a product name.', msg_enter_loc: 'Please enter a location name (e.g. C324D).',
+    no_locations: 'No locations match the filter.'
+  },
+  nl: {
+    doc_title: 'ABC-analyse', page_title: 'ABC-analyse & locaties',
+    page_sub: 'Afzonderlijke en gecombineerde ABC-classificatie (33% / 34% / 33%) met locaties zoeken.',
+    excel_title: 'Importeren uit Excel',
+    excel_abc_desc: 'Blad 1: A = naam, B = gewicht, C = verkoop, D = prijs. Locaties in kolom E (naam) en F (groep), of op blad 2 (A = naam, B = groep), worden automatisch geladen.',
+    manual_prod_title: 'Product handmatig invoeren', lbl_prod_name: 'Productnaam', ph_prod_name: 'bijv. Artikel X',
+    lbl_weight: 'Gewicht (kg)', ph_weight: '0,00', lbl_sales: 'Verkoop (st)', ph_sales: '0', lbl_price: 'Prijs (€)', ph_price: '0,00',
+    btn_add_prod: 'Product toevoegen', btn_run_abc: 'ABC-analyse uitvoeren (33 / 34 / 33)',
+    prepared_prods: 'Producten', lbl_sort_prods: 'Producten sorteren op',
+    opt_sort_name_asc: 'Productnaam (A–Z)', opt_sort_comb: 'Gecombineerde categorie [gewicht + verkoop]',
+    opt_sort_weight: 'ABC gewicht (A → C)', opt_sort_sales: 'ABC verkoop (A → C)', opt_sort_price: 'ABC prijs (A → C)',
+    col_prod: 'Product', col_cat_comb: 'Gecombineerd [G+V]', col_weight_abc: 'Gewicht [ABC]', col_sales_abc: 'Verkoop [ABC]', col_price_abc: 'Prijs [ABC]',
+    loc_search_title: 'Locaties zoeken & toevoegen', lbl_loc_name: 'Locatienaam', ph_loc_name: 'bijv. C324D',
+    lbl_loc_group: 'Locatiegroep', btn_add_loc: 'Locatie toevoegen',
+    lbl_filter_group: 'Locatiegroep', opt_all_groups: 'Alle groepen',
+    lbl_filter_letter: '1e letter (A–Z)', opt_all_letters: 'Alle letters',
+    lbl_filter_level: 'Niveau (4e teken, 0–9)', opt_all_levels: 'Alle niveaus',
+    loc_results: 'Gevonden locaties', col_loc_name: 'Locatie', col_group: 'Groep', col_1st_letter: '1e letter', col_3rd_num: 'Niveau (4e teken)',
+    unit_pcs: 'st', not_classified: 'niet ingedeeld',
+    msg_empty_prods: 'Geen producten ingevoerd voor de ABC-analyse.', msg_enter_name: 'Voer een productnaam in.', msg_enter_loc: 'Voer een locatienaam in (bijv. C324D).',
+    no_locations: 'Geen locaties gevonden met dit filter.'
+  },
+  hr: {
+    doc_title: 'ABC analiza', page_title: 'ABC analiza i lokacije',
+    page_sub: 'Zasebna i kombinirana ABC klasifikacija (33% / 34% / 33%) s pretragom lokacija.',
+    excel_title: 'Uvoz iz Excela',
+    excel_abc_desc: 'List 1: A = naziv, B = težina, C = prodaja, D = cijena. Lokacije iz stupaca E (naziv) i F (grupa), ili s 2. lista (A = naziv, B = grupa), učitavaju se automatski.',
+    manual_prod_title: 'Ručni unos proizvoda', lbl_prod_name: 'Naziv proizvoda', ph_prod_name: 'npr. Artikl X',
+    lbl_weight: 'Težina (kg)', ph_weight: '0,00', lbl_sales: 'Prodaja (kom)', ph_sales: '0', lbl_price: 'Cijena (€)', ph_price: '0,00',
+    btn_add_prod: 'Dodaj proizvod', btn_run_abc: 'Pokreni ABC analizu (33 / 34 / 33)',
+    prepared_prods: 'Proizvodi', lbl_sort_prods: 'Sortiraj proizvode po',
+    opt_sort_name_asc: 'Nazivu (A–Ž)', opt_sort_comb: 'Kombiniranoj kategoriji [težina + prodaja]',
+    opt_sort_weight: 'ABC težini (A → C)', opt_sort_sales: 'ABC prodaji (A → C)', opt_sort_price: 'ABC cijeni (A → C)',
+    col_prod: 'Proizvod', col_cat_comb: 'Kombinirano [T+P]', col_weight_abc: 'Težina [ABC]', col_sales_abc: 'Prodaja [ABC]', col_price_abc: 'Cijena [ABC]',
+    loc_search_title: 'Pretraga i unos lokacija', lbl_loc_name: 'Naziv lokacije', ph_loc_name: 'npr. C324D',
+    lbl_loc_group: 'Grupa lokacije', btn_add_loc: 'Dodaj lokaciju',
+    lbl_filter_group: 'Grupa lokacije', opt_all_groups: 'Sve grupe',
+    lbl_filter_letter: '1. slovo (A–Z)', opt_all_letters: 'Sva slova',
+    lbl_filter_level: 'Razina (4. znak, 0–9)', opt_all_levels: 'Sve razine',
+    loc_results: 'Pronađene lokacije', col_loc_name: 'Lokacija', col_group: 'Grupa', col_1st_letter: '1. slovo', col_3rd_num: 'Razina (4. znak)',
+    unit_pcs: 'kom', not_classified: 'nije razvrstano',
+    msg_empty_prods: 'Nema unesenih proizvoda za ABC analizu.', msg_enter_name: 'Unesite naziv proizvoda.', msg_enter_loc: 'Unesite naziv lokacije (npr. C324D).',
+    no_locations: 'Nema lokacija za odabrani filter.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="abc">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://inventory/abc</div>
+  <h1 data-i18n="page_title">ABC analysis &amp; locations</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="excel_title">Import from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_abc_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="manual_prod_title">Manual product entry</h2>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="prodName" data-i18n="lbl_prod_name">Product name</label>
+        <input type="text" id="prodName" data-i18n-placeholder="ph_prod_name">
+      </div>
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="prodWeight" data-i18n="lbl_weight">Weight (kg)</label>
+          <input type="number" id="prodWeight" step="0.01" min="0" inputmode="decimal" data-i18n-placeholder="ph_weight">
+        </div>
+        <div class="form-group flex-1">
+          <label for="prodSales" data-i18n="lbl_sales">Sales (pcs)</label>
+          <input type="number" id="prodSales" min="0" inputmode="numeric" data-i18n-placeholder="ph_sales">
+        </div>
+        <div class="form-group flex-1">
+          <label for="prodPrice" data-i18n="lbl_price">Price (€)</label>
+          <input type="number" id="prodPrice" step="0.01" min="0" inputmode="decimal" data-i18n-placeholder="ph_price">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-secondary" onclick="addManualProduct()" data-i18n="btn_add_prod">Add product</button>
+        <button type="button" class="btn btn-primary" onclick="calculateABC()" data-i18n="btn_run_abc">Run ABC analysis</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span data-i18n="prepared_prods">Products</span> <span>(<span id="productCount">0</span>)</span></h2>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="sortProductsBy" data-i18n="lbl_sort_prods">Sort products by</label>
+        <select id="sortProductsBy" onchange="renderProductsTable()">
+          <option value="name" data-i18n="opt_sort_name_asc">Product name</option>
+          <option value="combined" data-i18n="opt_sort_comb">Combined category</option>
+          <option value="weight" data-i18n="opt_sort_weight">ABC weight</option>
+          <option value="sales" data-i18n="opt_sort_sales">ABC sales</option>
+          <option value="price" data-i18n="opt_sort_price">ABC price</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="productBufferTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th data-i18n="col_prod">Product</th>
+            <th data-i18n="col_cat_comb">Combined</th>
+            <th data-i18n="col_weight_abc">Weight [ABC]</th>
+            <th data-i18n="col_sales_abc">Sales [ABC]</th>
+            <th data-i18n="col_price_abc">Price [ABC]</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="locationSection">
+    <h2 data-i18n="loc_search_title">Search &amp; add locations</h2>
+    <div class="card-body">
+      <div class="panel-dashed">
+        <div class="flex-row" style="align-items:flex-end">
+          <div class="form-group flex-1">
+            <label for="manualLocName" data-i18n="lbl_loc_name">Location name</label>
+            <input type="text" id="manualLocName" data-i18n-placeholder="ph_loc_name">
+          </div>
+          <div class="form-group flex-1">
+            <label for="manualLocGroup" data-i18n="lbl_loc_group">Location group</label>
+            <select id="manualLocGroup"></select>
+          </div>
+          <div class="form-group">
+            <button type="button" class="btn btn-secondary" onclick="addManualLocation()" data-i18n="btn_add_loc">Add location</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="filterGroup" data-i18n="lbl_filter_group">Location group</label>
+          <select id="filterGroup" onchange="filterLocations()">
+            <option value="" data-i18n="opt_all_groups">All groups</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="filterLetter" data-i18n="lbl_filter_letter">1st letter</label>
+          <select id="filterLetter" onchange="filterLocations()">
+            <option value="" data-i18n="opt_all_letters">All letters</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="filterLevel" data-i18n="lbl_filter_level">Level</label>
+          <select id="filterLevel" onchange="filterLocations()">
+            <option value="" data-i18n="opt_all_levels">All levels</option>
+          </select>
+        </div>
+      </div>
+      <h3 class="sub"><span data-i18n="loc_results">Locations found</span> (<span id="locationCount">0</span>)</h3>
+    </div>
+    <div class="table-wrap">
+      <table id="locationResultsTable">
+        <thead>
+          <tr>
+            <th data-i18n="col_loc_name">Location</th>
+            <th data-i18n="col_group">Group</th>
+            <th data-i18n="col_1st_letter">1st letter</th>
+            <th data-i18n="col_3rd_num">Level</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  let products = [];
+  let locations = [];
+  const $ = (id) => document.getElementById(id);
+  const GROUPS = ['AA','AB','AC','BA','BB','BC','CA','CB','CC'];
+
+  // Fill the select boxes
+  function addOptions(select, values) {
+    values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; select.appendChild(o); });
+  }
+  addOptions($('manualLocGroup'), GROUPS);
+  addOptions($('filterGroup'), GROUPS);
+  addOptions($('filterLetter'), Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)));
+  addOptions($('filterLevel'), Array.from({ length: 10 }, (_, i) => String(i)));
+
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0), rows2: wb.SheetNames.length > 1 ? WSK.sheetRows(wb, 1) : [] };
+      loadRows(data);
+      source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  /* rows: A name, B weight, C sales, D price, E/F location + group; rows2: location + group */
+  function loadRows(data) {
+      products = [];
+      locations = [];
+      const rows1 = data.rows || [];
+      for (let i = 1; i < rows1.length; i++) {
+        const r = rows1[i];
+        if (!r || !r.length) continue;
+        const name = String(r[0] ?? '').trim();
+        if (name && r.length >= 2) {
+          products.push(newProduct(name, parseFloat(r[1]) || 0, parseFloat(r[2]) || 0, parseFloat(r[3]) || 0));
+        }
+        const locName = String(r[4] ?? '').trim();
+        const groupName = String(r[5] ?? '').trim();
+        if (locName && groupName) locations.push({ name: locName, group: groupName });
+      }
+      {
+        const rows2 = data.rows2 || [];
+        for (let i = 1; i < rows2.length; i++) {
+          const r = rows2[i];
+          if (!r || !r.length) continue;
+          const locName = String(r[0] ?? '').trim();
+          if (locName) locations.push({ name: locName, group: String(r[1] ?? '').trim() });
+        }
+      }
+      WSK.setText($('excelStatus'), 'excel_loaded', { n: products.length + locations.length });
+      renderProductsTable();
+      filterLocations();
+  }
+
+  // master workbook: MasterData → product code, weight, sales, price
+  const source = WSKSession.wireModule({
+    page: 'abc', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { products = []; locations = []; renderProductsTable(); filterLocations(); },
+    fromMain: () => {
+      const m = WSKSession.sheet('masterdata').filter(r => r[0]);
+      return m.length ? { rows: [['product', 'weight', 'sales', 'price'], ...m.map(r => [r[0], r[6], r[7], r[8]])], rows2: [] } : null;
+    }
+  });
+
+  function newProduct(name, weight, sales, price) {
+    return { name, weight, sales, price, abcWeight: '', abcSales: '', abcPrice: '', combinedCat: '' };
+  }
+
+  function addManualProduct() {
+    const name = $('prodName').value.trim();
+    if (!name) { alert(WSK.t('msg_enter_name')); return; }
+    products.push(newProduct(name,
+      parseFloat($('prodWeight').value) || 0,
+      parseFloat($('prodSales').value) || 0,
+      parseFloat($('prodPrice').value) || 0));
+    ['prodName', 'prodWeight', 'prodSales', 'prodPrice'].forEach(id => $(id).value = '');
+    $('prodName').focus();
+    renderProductsTable();
+  }
+
+  function addManualLocation() {
+    const name = $('manualLocName').value.trim();
+    if (!name) { alert(WSK.t('msg_enter_loc')); return; }
+    locations.push({ name, group: $('manualLocGroup').value });
+    $('manualLocName').value = '';
+    filterLocations();
+  }
+
+  function badge(cat) {
+    return cat ? `<span class="badge badge-${cat.toLowerCase()}">${cat}</span>` : '';
+  }
+
+  function fmt(n, digits) {
+    return Number(n).toLocaleString(WSK.getLang() === 'en' ? 'en-GB' : WSK.getLang(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+
+  function renderProductsTable() {
+    const sortBy = $('sortProductsBy').value;
+    const key = { combined: 'combinedCat', weight: 'abcWeight', sales: 'abcSales', price: 'abcPrice' }[sortBy];
+    products.sort((a, b) => sortBy === 'name'
+      ? a.name.localeCompare(b.name, undefined, { numeric: true })
+      : (a[key] || 'ZZ').localeCompare(b[key] || 'ZZ'));
+
+    $('productCount').textContent = products.length;
+    const tbody = document.querySelector('#productBufferTable tbody');
+    if (!products.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-cell">${WSK.esc(WSK.t('no_rows'))}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = products.map((p, i) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td><strong>${WSK.esc(p.name)}</strong></td>
+        <td>${p.combinedCat ? `<span class="badge badge-info">${p.combinedCat}</span>` : `<span class="muted">${WSK.esc(WSK.t('not_classified'))}</span>`}</td>
+        <td class="num">${fmt(p.weight, 2)} kg${badge(p.abcWeight)}</td>
+        <td class="num">${fmt(p.sales, 0)} ${WSK.esc(WSK.t('unit_pcs'))}${badge(p.abcSales)}</td>
+        <td class="num">${fmt(p.price, 2)} €${badge(p.abcPrice)}</td>
+      </tr>`).join('');
+  }
+
+  function calculateABC() {
+    const N = products.length;
+    if (!N) { alert(WSK.t('msg_empty_prods')); return; }
+
+    let countA = Math.round(N * 0.33);
+    let countC = Math.round(N * 0.33);
+    if (N <= 2) { countA = 1; countC = 0; }
+    const countB = Math.max(0, N - countA - countC);
+
+    function assign(prop, resultKey) {
+      [...products].sort((a, b) => b[prop] - a[prop]).forEach((p, idx) => {
+        p[resultKey] = idx < countA ? 'A' : idx < countA + countB ? 'B' : 'C';
+      });
+    }
+    assign('weight', 'abcWeight');
+    assign('sales', 'abcSales');
+    assign('price', 'abcPrice');
+    products.forEach(p => { p.combinedCat = p.abcWeight + p.abcSales; });
+
+    renderProductsTable();
+    filterLocations();
+  }
+
+  function filterLocations() {
+    const grp = $('filterGroup').value;
+    const letter = $('filterLetter').value;
+    const level = $('filterLevel').value;
+    const tbody = document.querySelector('#locationResultsTable tbody');
+
+    const found = locations.filter(loc => {
+      const n = loc.name.toUpperCase();
+      return (!grp || loc.group.toUpperCase() === grp) &&
+             (!letter || n.charAt(0) === letter) &&
+             (!level || (n.length >= 4 && n.charAt(3) === level));
+    });
+
+    $('locationCount').textContent = found.length;
+    if (!found.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">${WSK.esc(WSK.t(locations.length ? 'no_locations' : 'no_rows'))}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = found.map(loc => {
+      const n = loc.name.toUpperCase();
+      return `<tr>
+        <td><span class="loc-tag">${WSK.esc(loc.name)}</span></td>
+        <td>${loc.group ? `<span class="badge badge-info">${WSK.esc(loc.group)}</span>` : ''}</td>
+        <td>${WSK.esc(n.charAt(0))}</td>
+        <td>${WSK.esc(n.length >= 4 ? n.charAt(3) : '')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.addEventListener('wsk:langchange', () => { renderProductsTable(); filterLocations(); });
+  renderProductsTable();
+  filterLocations();
+</script>
+</body>
+</html>

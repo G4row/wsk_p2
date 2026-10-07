@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>QR &amp; Barcode Generator · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+  /* Screen: dark preview area. The A4 sheets themselves stay white so the PDF prints normally. */
+  .a4-preview-wrapper {
+    overflow-x: auto;
+    background: #010401;
+    border-top: 1px solid var(--line);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+  .a4-preview-wrapper:empty::before {
+    content: attr(data-empty);
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px;
+  }
+
+  .a4Page {
+    width: 210mm; height: 297mm;
+    padding: 12mm;
+    background: #fff; color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    box-shadow: 0 0 24px rgba(0, 255, 65, .18);
+    box-sizing: border-box;
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .a4-header { border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+  .pallet-info { display: flex; align-items: center; gap: 12px; }
+  .pallet-text { font-size: 13pt; font-weight: bold; }
+  .pallet-barcode-container svg { height: 35px; max-width: 180px; }
+  .page-number-tag { font-size: 9pt; color: #475569; font-weight: 600; }
+  .a4-content { display: flex; gap: 15px; flex: 1; height: calc(100% - 70px); }
+  .left-col { width: 60%; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 6px 10px; max-height: 100%; }
+  .barcode-item { width: 135px; display: flex; flex-direction: column; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px; }
+  .barcode-item svg { width: 100%; height: 26px; }
+  .barcode-val { font-family: monospace; font-size: 7pt; font-weight: bold; word-break: break-all; margin-top: 1px; }
+  .right-col { width: 40%; display: flex; flex-direction: column; align-items: center; border-left: 1px dashed #cbd5e1; padding-left: 15px; }
+  .qr-box { text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; width: 100%; }
+  .qr-box h3 { margin: 0 0 8px; font-size: 10pt; }
+  .qr-container { display: flex; justify-content: center; margin-bottom: 8px; }
+  .qr-desc { font-size: 7.5pt; color: #475569; word-break: break-all; max-height: 120px; overflow: hidden; font-family: monospace; }
+
+  #resultText { min-height: 140px; font-size: 13px; }
+</style>
+
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'QR & Barcode Generator', page_title: 'QR & barcode generator', page_sub: 'Build A4 pallet sheets with barcodes and a QR code, then save them as PDF.',
+    input_title: 'Input', lbl_pallet: '1. Pallet ID', lbl_file: '2. Upload (image, PDF or Excel)',
+    lbl_codes: '3. Product codes (comma-separated)', ph_codes: 'Type or load codes…',
+    btn_refresh: 'Refresh preview', btn_pdf: 'Save / print PDF',
+    preview_title: 'A4 preview', preview_empty: 'Enter product codes to see the A4 preview.',
+    st_ready: 'Ready.', st_reading: 'Reading file…', st_scanning: 'Scanning image, please wait…',
+    st_excel_ok: 'Excel read: {n} codes found.', st_pdf_ok: 'PDF read: {n} codes found.', st_img_ok: '{n} codes found in the image.',
+    st_none: 'No codes found. Check the file or type the codes manually.', st_error: 'The file could not be processed.',
+    st_type: 'Unsupported file type. Use an image, PDF, Excel or CSV file.', st_pdf_making: 'Creating PDF…', st_pdf_done: 'PDF saved.',
+    a4_pallet: 'Pallet ID', a4_page: 'Page {n} of {total}', a4_qr: 'QR code of the values (without pallet ID)',
+    pdf_file: 'Pallet'
+  },
+  nl: {
+    doc_title: 'QR- & barcodegenerator', page_title: 'QR- & barcodegenerator', page_sub: 'Maak A4-palletbladen met barcodes en een QR-code en sla ze op als PDF.',
+    input_title: 'Invoer', lbl_pallet: '1. Pallet-ID', lbl_file: '2. Uploaden (afbeelding, PDF of Excel)',
+    lbl_codes: '3. Productcodes (gescheiden door komma)', ph_codes: 'Typ of laad codes…',
+    btn_refresh: 'Voorbeeld vernieuwen', btn_pdf: 'PDF opslaan / afdrukken',
+    preview_title: 'A4-voorbeeld', preview_empty: 'Vul productcodes in om het A4-voorbeeld te zien.',
+    st_ready: 'Gereed.', st_reading: 'Bestand wordt gelezen…', st_scanning: 'Afbeelding wordt gescand, even geduld…',
+    st_excel_ok: 'Excel gelezen: {n} codes gevonden.', st_pdf_ok: 'PDF gelezen: {n} codes gevonden.', st_img_ok: '{n} codes gevonden in de afbeelding.',
+    st_none: 'Geen codes gevonden. Controleer het bestand of typ de codes handmatig.', st_error: 'Het bestand kon niet worden verwerkt.',
+    st_type: 'Bestandstype niet ondersteund. Gebruik een afbeelding, PDF, Excel of CSV.', st_pdf_making: 'PDF wordt gemaakt…', st_pdf_done: 'PDF opgeslagen.',
+    a4_pallet: 'Pallet-ID', a4_page: 'Pagina {n} van {total}', a4_qr: 'QR-code van de waarden (zonder pallet-ID)',
+    pdf_file: 'Pallet'
+  },
+  hr: {
+    doc_title: 'Generator QR koda i barkodova', page_title: 'QR i barkod generator', page_sub: 'Izrada A4 listova za palete s barkodovima i QR kodom te spremanje u PDF.',
+    input_title: 'Unos', lbl_pallet: '1. ID palete', lbl_file: '2. Učitaj (slika, PDF ili Excel)',
+    lbl_codes: '3. Kodovi proizvoda (odvojeni zarezom)', ph_codes: 'Upišite ili učitajte kodove…',
+    btn_refresh: 'Osvježi prikaz', btn_pdf: 'Spremi / ispiši PDF',
+    preview_title: 'A4 prikaz', preview_empty: 'Unesite kodove proizvoda za prikaz A4 lista.',
+    st_ready: 'Spremno.', st_reading: 'Čitanje datoteke…', st_scanning: 'Skeniranje slike, pričekajte…',
+    st_excel_ok: 'Excel pročitan: pronađeno {n} kodova.', st_pdf_ok: 'PDF pročitan: pronađeno {n} kodova.', st_img_ok: 'Na slici je pronađeno {n} kodova.',
+    st_none: 'Nije pronađen nijedan kod. Provjerite datoteku ili upišite kodove ručno.', st_error: 'Datoteku nije moguće obraditi.',
+    st_type: 'Vrsta datoteke nije podržana. Koristite sliku, PDF, Excel ili CSV.', st_pdf_making: 'Izrada PDF-a…', st_pdf_done: 'PDF je spremljen.',
+    a4_pallet: 'ID palete', a4_page: 'Stranica {n} od {total}', a4_qr: 'QR kod vrijednosti (bez ID-a palete)',
+    pdf_file: 'Paleta'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+</head>
+<body data-page="qr">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://tools/qr</div>
+  <h1 data-i18n="page_title">QR &amp; barcode generator</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container" style="max-width:1000px">
+  <section class="card">
+    <h2 data-i18n="input_title">Input</h2>
+    <div class="card-body">
+      <div class="flex-row">
+        <div class="flex-1">
+          <div class="form-group">
+            <label for="palletIdInput" data-i18n="lbl_pallet">1. Pallet ID</label>
+            <input type="text" id="palletIdInput" value="PAL2026709YZBV007" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="fileInput" data-i18n="lbl_file">2. Upload</label>
+            <input type="file" id="fileInput" accept="image/*,.pdf,.xlsx,.xls,.csv">
+            <div class="status" id="status" aria-live="polite" data-i18n="st_ready">Ready.</div>
+          </div>
+        </div>
+        <div class="flex-1">
+          <div class="form-group">
+            <label for="resultText" data-i18n="lbl_codes">3. Product codes</label>
+            <textarea id="resultText" data-i18n-placeholder="ph_codes" spellcheck="false"></textarea>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" onclick="renderPreview()" data-i18n="btn_refresh">Refresh preview</button>
+            <button type="button" class="btn btn-primary" onclick="downloadPDF()" data-i18n="btn_pdf">Save / print PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="preview_title">A4 preview</h2>
+    <div class="a4-preview-wrapper" id="pdfExportContainer"></div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const statusDiv = $('status');
+  const resultText = $('resultText');
+  const palletIdInput = $('palletIdInput');
+  const status = (key, vars) => WSK.setText(statusDiv, key, vars);
+
+  $('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    status('st_reading');
+    const name = file.name.toLowerCase();
+    try {
+      if (/\.(xlsx|xls|csv)$/.test(name)) await processExcel(file);
+      else if (name.endsWith('.pdf')) await processPDF(file);
+      else if (file.type.startsWith('image/')) await processImage(file);
+      else status('st_type');
+    } catch (err) {
+      console.error(err);
+      status('st_error');
+    }
+  });
+
+  function setCodes(codes, okKey) {
+    resultText.value = codes.join(', ');
+    status(codes.length ? okKey : 'st_none', { n: codes.length });
+    renderPreview();
+  }
+
+  async function processExcel(file) {
+    if (typeof XLSX === 'undefined') { status('xlsx_missing'); return; }
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    const tokens = [];
+    rows.forEach(row => row.forEach(cell => {
+      if (cell !== null && cell !== undefined) { const s = String(cell).trim(); if (s) tokens.push(s); }
+    }));
+    setCodes(filterCodes(tokens), 'st_excel_ok');
+  }
+
+  async function processPDF(file) {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const content = await (await pdf.getPage(i)).getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    setCodes(filterCodes(text.split(/[\s,]+/)), 'st_pdf_ok');
+  }
+
+  async function processImage(file) {
+    status('st_scanning');
+    const worker = await Tesseract.createWorker('eng');
+    const ret = await worker.recognize(file);
+    await worker.terminate();
+    setCodes(filterCodes(ret.data.text.split(/[\s,]+/)), 'st_img_ok');
+  }
+
+  // Keeps codes with dashes etc.; drops short item numbers and header words.
+  function filterCodes(tokens) {
+    const skip = new Set(['S/N', 'LIST', 'ITEM', 'ZONNEPLAN', 'NEXUS', 'THUISBATTERIJ']);
+    const valid = [];
+    tokens.forEach(token => {
+      const clean = String(token).replace(/^\.+|\.+$/g, '').trim();
+      if (/^\d{1,3}$/.test(clean)) return;
+      if (skip.has(clean.toUpperCase())) return;
+      if (clean.length >= 5 && /[A-Z0-9]/i.test(clean)) valid.push(clean);
+    });
+    return [...new Set(valid)];
+  }
+
+  function renderPreview() {
+    const raw = resultText.value.trim();
+    const palletId = palletIdInput.value.trim() || 'PALLET-N/A';
+    const container = $('pdfExportContainer');
+    container.innerHTML = '';
+    container.setAttribute('data-empty', WSK.t('preview_empty'));
+    if (!raw) return;
+
+    const items = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const PER_PAGE = 32;
+    const totalPages = Math.ceil(items.length / PER_PAGE) || 1;
+
+    for (let p = 0; p < totalPages; p++) {
+      const pageItems = items.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
+      const pageValue = pageItems.join(', ');
+
+      const page = document.createElement('div');
+      page.className = 'a4Page';
+      page.innerHTML = `
+        <div class="a4-header">
+          <div class="pallet-info">
+            <span class="pallet-text">${WSK.esc(WSK.t('a4_pallet'))}: [ ${WSK.esc(palletId)} ]</span>
+            <div class="pallet-barcode-container"><svg id="pallet-bc-${p}"></svg></div>
+          </div>
+          <div class="page-number-tag">${WSK.esc(WSK.t('a4_page', { n: p + 1, total: totalPages }))}</div>
+        </div>
+        <div class="a4-content">
+          <div class="left-col">
+            ${pageItems.map((code, i) => `<div class="barcode-item"><svg id="item-bc-${p}-${i}"></svg><div class="barcode-val">${WSK.esc(code)}</div></div>`).join('')}
+          </div>
+          <div class="right-col">
+            <div class="qr-box">
+              <h3>${WSK.esc(WSK.t('a4_qr'))}</h3>
+              <div class="qr-container" id="qr-target-${p}"></div>
+              <div class="qr-desc">${WSK.esc(pageValue)}</div>
+            </div>
+          </div>
+        </div>`;
+      container.appendChild(page);
+
+      const bc = (sel, val, h) => {
+        try { JsBarcode(sel, val, { format: 'CODE128', displayValue: false, height: h, margin: 0 }); }
+        catch (e) { JsBarcode(sel, 'ERR', { displayValue: false }); }
+      };
+      if (window.JsBarcode) {
+        bc(`#pallet-bc-${p}`, palletId, 35);
+        pageItems.forEach((code, i) => bc(`#item-bc-${p}-${i}`, code, 22));
+      }
+      if (window.QRCode) {
+        new QRCode($(`qr-target-${p}`), { text: pageValue, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
+      }
+    }
+  }
+
+  function downloadPDF() {
+    if (!resultText.value.trim()) { renderPreview(); return; }
+    status('st_pdf_making');
+    const name = (palletIdInput.value.trim() || 'export').replace(/[^\w.-]+/g, '_');
+    html2pdf().set({
+      margin: 0,
+      filename: `${WSK.t('pdf_file')}_${name}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    }).from($('pdfExportContainer')).save().then(() => status('st_pdf_done'));
+  }
+
+  let previewTimer;
+  resultText.addEventListener('input', () => { clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 400); });
+  palletIdInput.addEventListener('input', () => { clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 400); });
+  document.addEventListener('wsk:langchange', renderPreview);
+
+  window.addEventListener('load', () => {
+    resultText.value = 'Y260523D30530469, Y260523D30530467, Y260523D30530468, Y260523D30530471, Y260523D30530473, Y260523D30530474, Y260523D30530472, Y260523D30530476, Y260523D30530477, Y260523D30530478, Y260523D30530480, Y260523D30530479, Y260523D30530475, Y260523D30530481, Y260523D30530455, Y260523D30530270, Y260523D30530271, Y260523D30530272, Y260523D30530269, Y260523D30530274, Y260523D30530277, Y260523D30530273, Y260523D30530267, Y260523D30530280, Y260523D30530278, Y260523D30530281, Y260523D30530279, Y260523D30530284, Y260523D30530282, Y260523D30530285, Y260523D30530283, Y260523D30530288';
+    renderPreview();
+  });
+</script>
+</body>
+</html>

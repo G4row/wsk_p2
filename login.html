@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Sign in · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<script src="warehouse.js"></script>
+<style>
+  /* ---------- matrix rain behind the sign-in screen ---------- */
+  .rain-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .55; }
+  .scr { position: relative; z-index: 1; }
+  #scrLogin .login { background: radial-gradient(ellipse at center, rgba(2,6,2,.92) 0%, rgba(2,6,2,.82) 60%, rgba(2,6,2,0) 100%); }
+  #scrLogin .login form, #scrLogin .login-head { position: relative; }
+  body { padding-bottom: 0; }
+  .scr { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+  .scr[hidden] { display: none; }
+
+  /* ---------- sign in ---------- */
+  .login { flex: 1; width: 100%; max-width: 420px; margin: 0 auto; padding: 40px 20px 28px; display: flex; flex-direction: column; gap: 24px; }
+  .login-head { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+  .login-logo { display: grid; grid-template-columns: repeat(15, 8px); gap: 1px; filter: drop-shadow(0 0 10px rgba(0,255,65,.55)); }
+  .login-logo i { width: 8px; height: 8px; display: block; }
+  .login-logo i.on { background: var(--accent); }
+  .login-title { font-family: var(--display); font-size: 40px; line-height: .95; color: var(--white); text-shadow: 0 0 14px rgba(0,255,65,.45); }
+  .login-sub { font-size: 11px; letter-spacing: .2em; color: var(--muted); text-transform: uppercase; }
+  .login form { display: flex; flex-direction: column; gap: 16px; }
+  .login label.tag { font-size: 12px; color: var(--accent); letter-spacing: .06em; margin-bottom: 6px; }
+  .login label.tag::before { content: "["; color: var(--muted); }
+  .login label.tag::after { content: "]"; color: var(--muted); }
+  .xl-box { border: 1px dashed var(--accent); background: var(--panel-2); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .xl-sheets { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+  .xl-sheets div { display: flex; justify-content: space-between; gap: 8px; }
+  .xl-sheets .ok { color: var(--accent); }
+  .xl-sheets .no { color: var(--muted); }
+  .xl-sheets .cnt { color: var(--muted); }
+  .xl-demo { flex: 0 0 auto; width: 100%; }
+  .login form .btn { flex: 0 0 auto; }
+  .btn-login { min-height: 52px; font-size: 15px; letter-spacing: .14em; }
+  .login-note { margin-top: auto; text-align: center; font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  /* ---------- daily report ---------- */
+  .rp-top { border-bottom: 1px solid var(--line-dim); }
+  .rp-top-in { max-width: 1000px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  .rp-user { display: flex; align-items: center; gap: 12px; }
+  .rp-user small { display: block; font-size: 11px; color: var(--muted); }
+  .rp-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .rp-file { font-size: 12px; color: var(--muted); border: 1px dashed var(--line); padding: 8px 10px; }
+  .rp-out { flex: 0 0 auto; min-height: 40px; }
+  .rp { flex: 1; width: 100%; max-width: 900px; margin: 0 auto; padding: 22px 16px 28px; display: flex; flex-direction: column; gap: 18px; }
+  .rp-hello { font-family: var(--display); font-weight: 400; font-size: clamp(2.4rem, 7vw, 4rem); line-height: .9; color: var(--white); text-shadow: 0 0 16px rgba(0,255,65,.4); margin: 0; }
+  .rp-date { font-size: 13px; color: var(--muted); }
+  .rp-term { font-size: 15px; line-height: 1.75; color: var(--text); }
+  .rp-cmd { color: var(--accent); margin-bottom: 10px; }
+  .rp-grp { margin-top: 16px; color: var(--accent); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+  .rp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 17em); align-items: baseline; column-gap: 14px; }
+  .rp-row.sub .rp-lbl { padding-left: 2.2em; }
+  .rp-lbl { color: var(--soft); white-space: nowrap; overflow: hidden; }
+  .rp-lbl::after { content: attr(data-lead); color: #1f7a3a; }
+  .rp-val { min-width: 6.5ch; text-align: right; white-space: nowrap; font-family: var(--display); font-size: 27px; line-height: 1; color: var(--white); text-shadow: 0 0 10px rgba(0,255,65,.35); font-variant-numeric: tabular-nums; }
+  .rp-val.good { color: var(--accent); }
+  .rp-val.warn { color: var(--warn); }
+  .rp-note { font-size: 12px; line-height: 1.35; color: var(--muted); }
+  .rp-note.warn { color: var(--warn); }
+  .rp-bar { white-space: nowrap; overflow: hidden; letter-spacing: -1px; font-size: 13px; }
+  .rp-cur { display: inline-block; width: .55em; height: 1.05em; vertical-align: -.15em; background: var(--accent); animation: rp-blink 1s steps(1) infinite; }
+  @keyframes rp-blink { 50% { opacity: 0; } }
+  .rp-skip { font-size: 12px; color: var(--muted); text-align: center; }
+  .rp-start { align-self: center; flex: 0 0 auto; min-width: 240px; min-height: 56px; font-size: 17px; letter-spacing: .2em; }
+  .rp-empty { color: var(--warn); }
+  @media (max-width: 640px) {
+    .rp-term { font-size: 13px; }
+    .rp-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .rp-bar, .rp-note { grid-column: 1 / -1; line-height: 1.2; margin: -2px 0 4px; }
+    .rp-row.sub .rp-lbl { padding-left: 1.2em; }
+    .rp-val { font-size: 23px; }
+    .rp-file { display: none; }
+  }
+  .fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; pointer-events: none; }
+  .fx-veil { position: fixed; inset: 0; z-index: 49; background: #010401; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+  .fx-veil.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .rp-cur { animation: none; } }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Sign in', demo_sign: 'Demo · sign in',
+    lbl_user: 'User', lbl_pass: 'Password', lbl_excel: 'Excel', ph_user: 'any name', ph_pass: 'anything',
+    btn_demo_wb: 'Use demo workbook', btn_signin: '[ Sign in ]',
+    no_file_hint: 'No file? The demo workbook is used.', reading: 'Reading workbook…', read_fail: 'This file could not be read. Check that it is a valid Excel file.',
+    demo_fail: 'The demo workbook could not be loaded. Upload a file instead.',
+    rows: '{n} rows', missing: 'missing',
+    note: 'Demo: any user name and password works.\nData stays on this device and is cleared on sign-out.',
+    sign_out: 'Sign out', signed_in: '> signed in: {u}',
+    hello_morning: 'Good morning, {u}', hello_day: 'Good afternoon, {u}', hello_evening: 'Good evening, {u}',
+    cmd: 'wsk --today', skip: 'Tap to show everything', start: '[ Start ]',
+    g_wh: 'Warehouse', r_total: 'Total locations', r_empty: 'Empty locations', r_resv: 'Reservations (locations)',
+    r_resv_n: '{n} reservations · goods to collect',
+    g_in: 'Inbound', r_in_pal: 'Pallets arriving', r_in_prod: 'Products', r_in_cli: 'Clients', r_in_new: '{n} product(s) not in MasterData',
+    g_ord: 'Orders', r_orders: 'Orders to pick', r_urgent: '{n} urgent', r_pcs: 'Pieces to pick', r_lines: 'Order lines', r_full: 'Full pallets', r_freed: 'Locations freed',
+    g_out: 'Outbound', r_out_pal: 'Pallets to ship', r_trucks: 'Trucks', r_orders_n: '{n} orders',
+    g_fc: 'Forecast · end of day', r_fc: 'Empty locations', r_fc_note: '{a} − {b} inbound + {c} freed',
+    no_sheet: 'no data in the workbook'
+  },
+  nl: {
+    doc_title: 'Inloggen', demo_sign: 'Demo · inloggen',
+    lbl_user: 'Gebruiker', lbl_pass: 'Wachtwoord', lbl_excel: 'Excel', ph_user: 'elke naam', ph_pass: 'wat dan ook',
+    btn_demo_wb: 'Demobestand gebruiken', btn_signin: '[ Inloggen ]',
+    no_file_hint: 'Geen bestand? Dan wordt het demobestand gebruikt.', reading: 'Bestand wordt gelezen…', read_fail: 'Dit bestand kan niet worden gelezen. Controleer of het een geldig Excel-bestand is.',
+    demo_fail: 'Het demobestand kon niet worden geladen. Upload een bestand.',
+    rows: '{n} regels', missing: 'ontbreekt',
+    note: 'Demo: elke gebruikersnaam en elk wachtwoord werkt.\nGegevens blijven op dit apparaat en worden gewist bij uitloggen.',
+    sign_out: 'Uitloggen', signed_in: '> ingelogd: {u}',
+    hello_morning: 'Goedemorgen, {u}', hello_day: 'Goedemiddag, {u}', hello_evening: 'Goedenavond, {u}',
+    cmd: 'wsk --vandaag', skip: 'Tik om alles te tonen', start: '[ Start ]',
+    g_wh: 'Magazijn', r_total: 'Totaal locaties', r_empty: 'Lege locaties', r_resv: 'Reserveringen (locaties)',
+    r_resv_n: '{n} reserveringen · goederen verzamelen',
+    g_in: 'Inkomend', r_in_pal: 'Pallets die binnenkomen', r_in_prod: 'Producten', r_in_cli: 'Klanten', r_in_new: '{n} product(en) niet in MasterData',
+    g_ord: 'Orders', r_orders: 'Orders om te picken', r_urgent: '{n} spoed', r_pcs: 'Stuks om te picken', r_lines: 'Orderregels', r_full: 'Volle pallets', r_freed: 'Locaties die vrijkomen',
+    g_out: 'Uitgaand', r_out_pal: 'Pallets te verzenden', r_trucks: 'Vrachtwagens', r_orders_n: '{n} orders',
+    g_fc: 'Prognose · einde dag', r_fc: 'Lege locaties', r_fc_note: '{a} − {b} inkomend + {c} vrij',
+    no_sheet: 'geen gegevens in het bestand'
+  },
+  hr: {
+    doc_title: 'Prijava', demo_sign: 'Demo · prijava',
+    lbl_user: 'Korisnik', lbl_pass: 'Lozinka', lbl_excel: 'Excel', ph_user: 'bilo koje ime', ph_pass: 'bilo što',
+    btn_demo_wb: 'Koristi demo Excel', btn_signin: '[ Prijava ]',
+    no_file_hint: 'Nema datoteke? Koristi se demo Excel.', reading: 'Čitanje datoteke…', read_fail: 'Datoteku nije moguće pročitati. Provjerite je li ispravna Excel datoteka.',
+    demo_fail: 'Demo Excel nije moguće učitati. Učitajte datoteku.',
+    rows: '{n} redaka', missing: 'nema',
+    note: 'Demo: radi bilo koje korisničko ime i lozinka.\nPodaci ostaju na ovom uređaju i brišu se pri odjavi.',
+    sign_out: 'Odjava', signed_in: '> prijavljen: {u}',
+    hello_morning: 'Dobro jutro, {u}', hello_day: 'Dobar dan, {u}', hello_evening: 'Dobra večer, {u}',
+    cmd: 'wsk --danas', skip: 'Dodirnite za prikaz svega', start: '[ Start ]',
+    g_wh: 'Skladište', r_total: 'Ukupno lokacija', r_empty: 'Prazne lokacije', r_resv: 'Rezervacije (lokacija)',
+    r_resv_n: '{n} rezervacija · roba za skupiti',
+    g_in: 'Ulaz robe', r_in_pal: 'Paleta dolazi', r_in_prod: 'Proizvoda', r_in_cli: 'Klijenata', r_in_new: '{n} proizvod(a) nije u MasterData',
+    g_ord: 'Narudžbe', r_orders: 'Narudžbi za picking', r_urgent: '{n} hitnih', r_pcs: 'Komada za prikupiti', r_lines: 'Linija', r_full: 'Punih paleta', r_freed: 'Lokacija se oslobađa',
+    g_out: 'Izlaz', r_out_pal: 'Paleta za otpremu', r_trucks: 'Kamiona', r_orders_n: '{n} narudžbi',
+    g_fc: 'Prognoza · kraj dana', r_fc: 'Prazne lokacije', r_fc_note: '{a} − {b} ulaz + {c} oslobođeno',
+    no_sheet: 'nema podataka u Excelu'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="login">
+<canvas class="rain-bg" id="rainBg" aria-hidden="true"></canvas>
+
+<!-- ===================== SIGN IN ===================== -->
+<section class="scr" id="scrLogin" hidden>
+  <div class="login">
+    <div class="login-head">
+      <div class="login-logo" id="logoGrid" aria-hidden="true"></div>
+      <div>
+        <div class="login-title">Warehouse Swiss Knife</div>
+        <div class="login-sub" data-i18n="demo_sign">Demo · sign in</div>
+      </div>
+      <div class="lang-switcher" data-lang-switcher></div>
+    </div>
+    <form id="loginForm" autocomplete="off" novalidate>
+      <div>
+        <label class="tag" for="inUser" data-i18n="lbl_user">User</label>
+        <input type="text" id="inUser" autocapitalize="off" data-i18n-placeholder="ph_user">
+      </div>
+      <div>
+        <label class="tag" for="inPass" data-i18n="lbl_pass">Password</label>
+        <input type="password" id="inPass" data-i18n-placeholder="ph_pass">
+      </div>
+      <div>
+        <label class="tag" for="inFile" data-i18n="lbl_excel">Excel</label>
+        <div class="xl-box">
+          <input type="file" id="inFile" accept=".xlsx,.xls,.xlsm,.xlsb">
+          <div class="xl-sheets" id="xlSheets"></div>
+          <button type="button" class="btn btn-secondary btn-sm xl-demo" id="btnDemoWb" data-i18n="btn_demo_wb">Use demo workbook</button>
+          <div class="hint" id="xlHint" style="margin:0" data-i18n="no_file_hint"></div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-login" id="btnSignIn" data-i18n="btn_signin">[ Sign in ]</button>
+      <div class="status" id="loginStatus" aria-live="polite" style="color: var(--warn)"></div>
+    </form>
+    <p class="login-note" data-i18n="note" style="white-space: pre-line"></p>
+  </div>
+</section>
+
+<!-- ===================== DAILY REPORT ===================== -->
+<section class="scr" id="scrReport" hidden>
+  <header class="rp-top">
+    <div class="rp-top-in">
+      <div class="rp-user">
+        <span class="brand-mark">W+</span>
+        <span><strong style="color: var(--white); font-size: 14px">Warehouse Swiss Knife</strong><small id="rpSigned"></small></span>
+      </div>
+      <div class="rp-tools">
+        <span class="rp-file" id="rpFile"></span>
+        <div class="lang-switcher" data-lang-switcher></div>
+        <button type="button" class="btn btn-danger rp-out" id="btnSignOut" data-i18n="sign_out">Sign out</button>
+      </div>
+    </div>
+  </header>
+  <main class="rp" id="rpMain">
+    <div>
+      <h1 class="rp-hello" id="rpHello"></h1>
+      <div class="rp-date" id="rpDate"></div>
+    </div>
+    <div class="rp-term" id="rpTerm" aria-live="off"></div>
+    <p class="rp-skip" id="rpSkip" data-i18n="skip"></p>
+    <button type="button" class="btn btn-primary rp-start" id="btnStart" hidden data-i18n="start">[ Start ]</button>
+  </main>
+</section>
+
+<div class="fx-veil" id="fxVeil"></div>
+<canvas class="fx" id="fx" aria-hidden="true"></canvas>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmtN = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+
+  /* ---------- pixel logo (same mark as the boot screen) ---------- */
+  const LOGO = (() => {
+    const W = ['10001', '10001', '10001', '10101', '10101', '11011', '10001'];
+    const P = ['00000', '00100', '00100', '11111', '00100', '00100', '00000'];
+    const rows = ['111111111111111', '100000000000001'];
+    for (let i = 0; i < 7; i++) rows.push('10' + W[i] + '0' + P[i] + '01');
+    rows.push('100000000000001', '111111111111111');
+    return rows;
+  })();
+  $('logoGrid').innerHTML = LOGO.map(r => [...r].map(v => `<i class="${v === '1' ? 'on' : ''}"></i>`).join('')).join('');
+
+  /* ===================== SIGN IN ===================== */
+  let parsed = null;
+
+  const SHEETS = [['stock', 'Stock'], ['masterdata', 'MasterData'], ['racks', 'Racks'], ['clients', 'Clients'],
+                  ['inbound', 'Inbound'], ['orders', 'Orders'], ['outbound', 'Outbound']];
+
+  function showSheets() {
+    const box = $('xlSheets');
+    if (!parsed) { box.innerHTML = ''; $('xlHint').hidden = false; return; }
+    $('xlHint').hidden = true;
+    box.innerHTML = `<div><strong style="color: var(--white)">${WSK.esc(parsed.name)}</strong></div>` + SHEETS.map(([key, label]) => {
+      const rows = WSKSession.findSheet(parsed.sheets, key);
+      return rows
+        ? `<div><span><span class="ok">[✓]</span> ${label}</span><span class="cnt">${WSK.esc(WSK.t('rows', { n: fmtN(Math.max(0, rows.length - 1)) }))}</span></div>`
+        : `<div class="no"><span>[–] ${label}</span><span>${WSK.esc(WSK.t('missing'))}</span></div>`;
+    }).join('');
+  }
+
+  $('inFile').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    WSK.setText($('loginStatus'), 'reading');
+    WSKSession.parseFile(f).then(p => { parsed = p; WSK.setText($('loginStatus'), null); showSheets(); })
+      .catch(() => { parsed = null; WSK.setText($('loginStatus'), 'read_fail'); showSheets(); });
+  });
+
+  function loadDemo() {
+    WSK.setText($('loginStatus'), 'reading');
+    return fetch('WSK_master_workbook.xlsx')
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(buf => { parsed = WSKSession.parseBuffer(buf, 'WSK_master_workbook.xlsx'); WSK.setText($('loginStatus'), null); showSheets(); return parsed; })
+      .catch(() => { WSK.setText($('loginStatus'), 'demo_fail'); throw new Error('demo'); });
+  }
+  $('btnDemoWb').addEventListener('click', () => { WSK.resetFile($('inFile')); loadDemo().catch(() => {}); });
+
+  $('loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = $('btnSignIn'); btn.disabled = true;
+    (parsed ? Promise.resolve(parsed) : loadDemo())
+      .then(p => WSKSession.signIn($('inUser').value || 'demo', p))
+      .then(() => showReport())
+      .catch(() => {})
+      .finally(() => { btn.disabled = false; });
+  });
+
+  $('btnSignOut').addEventListener('click', () => {
+    RP.token++;
+    WSKSession.signOut().then(() => { parsed = null; showSheets(); $('inUser').value = ''; $('inPass').value = ''; showLogin(); });
+  });
+
+  function showLogin() {
+    $('scrReport').hidden = true; $('scrLogin').hidden = false;
+    showSheets();
+    $('inUser').focus({ preventScroll: true });
+  }
+
+  /* ===================== DAILY REPORT (numbers) ===================== */
+  function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function str(v) { return v == null ? '' : String(v).trim(); }
+
+  function buildReport() {
+    const md = new Map();
+    WSKSession.sheet('masterdata').forEach(r => {
+      const code = str(r[0]); if (!code) return;
+      const kpk = num(r[3]), kpp = num(r[4]);
+      md.set(code, { full: num(r[5]) || kpk * kpp, kpk, client: str(r[2]) });
+    });
+    const clients = new Map(WSKSession.sheet('clients').map(r => [str(r[0]), str(r[1])]).filter(([id]) => id && id.toLowerCase() !== 'total'));
+    const cname = (id) => clients.get(id) || id || '—';
+
+    const stock = WSKSession.sheet('stock');
+    const heights = WSKWarehouse.heightsFromRacks(WSKSession.sheet('racks'));
+    const wh = WSKWarehouse.analyze(stock, { heights });
+
+    // reservations: locations holding goods reserved for an order
+    const resv = stock.filter(r => str(r[6]));
+    const resvOrders = new Set(resv.map(r => str(r[6])));
+
+    // inbound
+    const inb = WSKSession.sheet('inbound').filter(r => str(r[0]) && str(r[5]));
+    let inPallets = 0; const inProducts = new Set(), inNew = new Set(), inClients = new Map();
+    inb.forEach(r => {
+      const code = str(r[5]), q = num(r[6]), m = md.get(code);
+      const pal = m && m.full ? Math.ceil(q / m.full) : 1;
+      if (!m) inNew.add(code);
+      inPallets += pal; inProducts.add(code);
+      const c = str(r[1]);
+      const e = inClients.get(c) || { pal: 0, eta: '', dock: str(r[4]) };
+      e.pal += pal; const eta = str(r[3]); if (!e.eta || eta < e.eta) e.eta = eta;
+      inClients.set(c, e);
+    });
+
+    // orders
+    // Orders: A order, B line, C client, D date, E priority, F product, G quantity, H carrier
+    const ord = WSKSession.sheet('orders').filter(r => str(r[0]) && str(r[5]));
+    const orderNos = new Set(ord.map(r => str(r[0])));
+    const urgent = new Set(ord.filter(r => /^(urgent|hitno|spoed)/i.test(str(r[4]))).map(r => str(r[0])));
+    let pcs = 0, full = 0; const restByCode = new Map();
+    ord.forEach(r => {
+      const code = str(r[5]), q = num(r[6]), m = md.get(code);
+      pcs += q;
+      if (m && m.full) { full += Math.floor(q / m.full); restByCode.set(code, (restByCode.get(code) || 0) + q % m.full); }
+    });
+    // floor pick faces that will run empty
+    const floor = new Map();
+    stock.forEach(r => { const loc = str(r[0]); if (loc.length >= 5 && loc[3] === '0' && str(r[1])) floor.set(str(r[1]), (floor.get(str(r[1])) || 0) + num(r[3])); });
+    let emptied = 0; restByCode.forEach((need, code) => { const have = floor.get(code); if (have && need >= have) emptied++; });
+    const freed = full + emptied;
+
+    // outbound
+    const out = WSKSession.sheet('outbound').filter(r => str(r[0]) && str(r[5]));
+    let outPal = 0; const trucks = new Map();
+    out.forEach(r => {
+      const p = num(r[7]); outPal += p;
+      const key = str(r[1]) || str(r[0]);
+      const t = trucks.get(key) || { carrier: str(r[0]), time: str(r[3]), orders: 0, pal: 0 };
+      t.orders++; t.pal += p; trucks.set(key, t);
+    });
+
+    return {
+      has: { stock: stock.length > 0, inbound: inb.length > 0, orders: ord.length > 0, outbound: out.length > 0 },
+      total: wh.total, empty: wh.status.empty, resvLoc: resv.length, resvN: resvOrders.size,
+      inPallets, inProducts: inProducts.size, inNew: inNew.size,
+      inClients: [...inClients.entries()].sort((a, b) => (a[1].eta || '').localeCompare(b[1].eta || '')).map(([id, e]) => ({ name: cname(id), ...e })),
+      orders: orderNos.size, urgent: urgent.size, pcs, lines: ord.length, full, freed,
+      outPal, trucks: [...trucks.values()].sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+    };
+  }
+
+  function reportItems(d) {
+    const T = WSK.t, items = [{ kind: 'cmd', text: '> ' + T('cmd') }];
+    const none = (key) => items.push({ kind: 'row', label: T(key), none: true });
+    items.push({ kind: 'grp', text: T('g_wh') });
+    items.push({ kind: 'row', label: T('r_total'), value: d.total });
+    items.push({ kind: 'row', label: T('r_empty'), value: d.empty, cls: 'good', bar: { r: d.empty / (d.total || 1), c: '#00ff41' } });
+    items.push({ kind: 'row', label: T('r_resv'), value: d.resvLoc, note: T('r_resv_n', { n: fmtN(d.resvN) }) });
+
+    items.push({ kind: 'grp', text: T('g_in') });
+    if (!d.has.inbound) none('no_sheet');
+    else {
+      items.push({ kind: 'row', label: T('r_in_pal'), value: d.inPallets });
+      items.push({ kind: 'row', label: T('r_in_prod'), value: d.inProducts, note: d.inNew ? T('r_in_new', { n: d.inNew }) : '', noteWarn: !!d.inNew });
+      items.push({ kind: 'row', label: T('r_in_cli'), value: d.inClients.length });
+      d.inClients.forEach(c => items.push({ kind: 'row', sub: true, label: `${c.eta || '--:--'}  ${c.name}  ${c.dock || ''}`, value: c.pal }));
+    }
+
+    items.push({ kind: 'grp', text: T('g_ord') });
+    if (!d.has.orders) none('no_sheet');
+    else {
+      items.push({ kind: 'row', label: T('r_orders'), value: d.orders, note: d.urgent ? T('r_urgent', { n: d.urgent }) : '', noteWarn: !!d.urgent });
+      items.push({ kind: 'row', label: T('r_pcs'), value: d.pcs });
+      items.push({ kind: 'row', label: T('r_lines'), value: d.lines });
+      items.push({ kind: 'row', label: T('r_full'), value: d.full });
+      items.push({ kind: 'row', label: T('r_freed'), value: d.freed, cls: 'good' });
+    }
+
+    items.push({ kind: 'grp', text: T('g_out') });
+    if (!d.has.outbound) none('no_sheet');
+    else {
+      items.push({ kind: 'row', label: T('r_out_pal'), value: d.outPal });
+      items.push({ kind: 'row', label: T('r_trucks'), value: d.trucks.length });
+      d.trucks.forEach(t => items.push({ kind: 'row', sub: true, label: `${t.time || '--:--'}  ${t.carrier}`, value: t.pal, note: T('r_orders_n', { n: t.orders }) }));
+    }
+
+    if (d.has.stock) {
+      const end = d.empty - d.inPallets + d.freed;
+      items.push({ kind: 'grp', text: T('g_fc') });
+      items.push({ kind: 'row', label: T('r_fc'), value: end, cls: end < d.empty ? 'warn' : 'good',
+                   note: T('r_fc_note', { a: fmtN(d.empty), b: fmtN(d.inPallets), c: fmtN(d.freed) }) });
+    }
+    return items;
+  }
+
+  /* ---------- typing engine (same feel as the warehouse report) ---------- */
+  const RP = { token: 0, skip: false };
+  const cursor = document.createElement('span'); cursor.className = 'rp-cur';
+  const LEAD = ' ' + '.'.repeat(80), BAR_W = 22;
+
+  function wait(ms, tok) {
+    return new Promise(res => {
+      if (RP.skip || tok !== RP.token) return res();
+      const t0 = performance.now();
+      const tick = () => (RP.skip || tok !== RP.token || performance.now() - t0 >= ms) ? res() : requestAnimationFrame(tick);
+      requestAnimationFrame(tick);
+    });
+  }
+  async function type(el, text, perChar, tok) {
+    el.appendChild(cursor);
+    const node = document.createTextNode('');
+    el.insertBefore(node, cursor);
+    if (RP.skip) { node.textContent = text; return; }
+    const step = Math.max(1, Math.round(16 / Math.max(1, perChar)));
+    for (let i = 0; i < text.length; i += step) {
+      if (tok !== RP.token) return;
+      if (RP.skip) break;
+      node.textContent = text.slice(0, i + step);
+      await wait(perChar * step, tok);
+    }
+    node.textContent = text;
+  }
+
+  async function runReport(instant) {
+    const tok = ++RP.token;
+    RP.skip = !!instant || reduceMotion();
+    const term = $('rpTerm'); term.innerHTML = '';
+    $('btnStart').hidden = true; $('rpSkip').hidden = RP.skip;
+    const items = reportItems(buildReport());
+    for (const it of items) {
+      if (tok !== RP.token) return;
+      if (it.kind !== 'row') {
+        const d = document.createElement('div'); d.className = it.kind === 'cmd' ? 'rp-cmd' : 'rp-grp';
+        term.appendChild(d); await type(d, it.text, 5, tok); await wait(it.kind === 'cmd' ? 200 : 60, tok);
+        continue;
+      }
+      const row = document.createElement('div'); row.className = 'rp-row' + (it.sub ? ' sub' : '');
+      const lbl = document.createElement('span'); lbl.className = 'rp-lbl';
+      const val = document.createElement('span'); val.className = 'rp-val' + (it.cls ? ' ' + it.cls : '');
+      const extra = document.createElement('span');
+      row.append(lbl, val, extra); term.appendChild(row);
+      await type(lbl, it.label, 4, tok);
+      if (it.none) { val.className = 'rp-note rp-empty'; cursor.remove(); continue; }
+      lbl.setAttribute('data-lead', LEAD);
+      const dot = document.createElement('span'); dot.textContent = '.'; dot.style.color = 'var(--accent)'; val.appendChild(dot);
+      for (let b = 0; b < 3 && !RP.skip; b++) {
+        dot.style.visibility = 'visible'; await wait(55, tok);
+        dot.style.visibility = 'hidden'; await wait(55, tok);
+      }
+      dot.remove();
+      await type(val, fmtN(it.value), 20, tok);
+      if (it.bar) {
+        extra.className = 'rp-bar';
+        const n = it.value > 0 ? Math.max(1, Math.round(it.bar.r * BAR_W)) : 0;
+        const on = document.createElement('span'); on.style.color = it.bar.c;
+        const off = document.createElement('span'); off.style.color = '#0f4d22';
+        extra.append(on, off);
+        await type(on, '█'.repeat(n), 2, tok); off.textContent = '░'.repeat(BAR_W - n);
+      } else if (it.note) {
+        extra.className = 'rp-note' + (it.noteWarn ? ' warn' : '');
+        await type(extra, it.note, 3, tok);
+      }
+      await wait(40, tok);
+    }
+    if (tok !== RP.token) return;
+    cursor.remove();
+    $('rpSkip').hidden = true; $('btnStart').hidden = false;
+    $('btnStart').focus({ preventScroll: true });
+  }
+
+  function hello() {
+    const h = new Date().getHours(), u = WSKSession.user() || 'demo';
+    $('rpHello').textContent = WSK.t(h < 12 ? 'hello_morning' : h < 18 ? 'hello_day' : 'hello_evening', { u });
+    const loc = { en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()];
+    const d = new Date().toLocaleDateString(loc, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    $('rpDate').textContent = d.charAt(0).toUpperCase() + d.slice(1);
+    $('rpSigned').textContent = WSK.t('signed_in', { u });
+    const at = WSKSession.loadedAt() ? new Date(WSKSession.loadedAt()).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }) : '';
+    $('rpFile').textContent = [WSKSession.fileName(), at].filter(Boolean).join(' · ');
+  }
+
+  function showReport() {
+    $('scrLogin').hidden = true; $('scrReport').hidden = false;
+    window.scrollTo(0, 0);
+    hello(); runReport();
+  }
+
+  $('rpMain').addEventListener('click', (e) => { if (!e.target.closest('#btnStart')) RP.skip = true; });
+  document.addEventListener('keydown', (e) => {
+    if ($('scrReport').hidden || !$('btnStart').hidden) return;
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); RP.skip = true; }
+  });
+
+  /* ===================== START: logo boot → index ===================== */
+  let fxW = 0, fxH = 0;
+  function fxCtx() {
+    const cv = $('fx'), dpr = window.devicePixelRatio || 1;
+    fxW = window.innerWidth; fxH = window.innerHeight;
+    cv.width = Math.round(fxW * dpr); cv.height = Math.round(fxH * dpr);
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return ctx;
+  }
+  const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+  function startApp() {
+    const go = () => { location.href = 'index.html'; };
+    if (reduceMotion()) { go(); return; }
+    $('btnStart').disabled = true;
+    $('fxVeil').classList.add('on');
+    const ctx = fxCtx();
+    const c = Math.max(8, Math.min(18, Math.floor(Math.min(fxW, fxH) * 0.045)));
+    const ox = fxW / 2 - 15 * c / 2, oy = fxH / 2 - 11 * c / 2;
+    // targets: the outline of the whole screen, like the app's frame
+    const parts = [];
+    LOGO.forEach((row, y) => [...row].forEach((v, x) => {
+      if (v !== '1') return;
+      for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++)
+        parts.push({ x: ox + x * c + sx * c / 2, y: oy + y * c + sy * c / 2, s: c / 2 - .5, row: y, appear: y * 55 + Math.random() * 140, d: Math.random() * 360 });
+    }));
+    const P = 2 * (fxW + fxH), m = 6;
+    parts.forEach((p, i) => {
+      let d = (i + .5) / parts.length * P;
+      if (d < fxW) { p.tx = d; p.ty = m; }
+      else if ((d -= fxW) < fxH) { p.tx = fxW - m; p.ty = d; }
+      else if ((d -= fxH) < fxW) { p.tx = fxW - d; p.ty = fxH - m; }
+      else { d -= fxW; p.tx = m; p.ty = fxH - d; }
+    });
+    const T = { show: 950, glitch: 1400, fly: 2350, out: 2700 };
+    const t0 = performance.now();
+    const step = (now) => {
+      const t = now - t0;
+      ctx.clearRect(0, 0, fxW, fxH);
+      const glitch = t > T.show && t < T.glitch && Math.floor(t / 70) % 3 === 0;
+      parts.forEach(p => {
+        let x = p.x, y = p.y, s = p.s, a = 1;
+        if (t < T.show) { if (t < p.appear) return; a = t - p.appear < 120 ? (Math.random() < .5 ? .25 : 1) : 1; }
+        else if (t < T.glitch) { if (glitch && p.row % 3 === 1) x += (p.row % 2 ? 1 : -1) * p.s * .8; }
+        else {
+          const k = ease(clamp01((t - T.glitch - p.d) / (T.fly - T.glitch - 360)));
+          x = p.x + (p.tx - p.x) * k; y = p.y + (p.ty - p.y) * k; s = p.s + (4 - p.s) * k;
+          if (t > T.fly) a = 1 - clamp01((t - T.fly) / (T.out - T.fly));
+        }
+        ctx.globalAlpha = a; ctx.fillStyle = '#00ff41'; ctx.fillRect(x, y, s, s);
+      });
+      ctx.globalAlpha = 1;
+      if (t < T.out) requestAnimationFrame(step); else go();
+    };
+    requestAnimationFrame(step);
+  }
+  $('btnStart').addEventListener('click', startApp);
+
+  /* ---------- language ---------- */
+  document.addEventListener('wsk:langchange', () => {
+    showSheets();
+    if (!$('scrReport').hidden) { hello(); runReport(true); }
+  });
+
+  /* ---------- open: already signed in → straight to the report ---------- */
+  WSKSession.ready.then(s => { if (s) showReport(); else showLogin(); });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) { $('btnStart').disabled = false; $('fxVeil').classList.remove('on'); fxCtx(); } });
+
+/* ---------- Matrix rain (sign-in screen only) ---------- */
+(function () {
+  const cv = document.getElementById('rainBg'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789WSK';
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FS = 16; let cols = 0, drops = [], W = 0, H = 0, raf = 0, last = 0;
+  const g = () => GLYPHS[(Math.random() * GLYPHS.length) | 0];
+  function size() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cols = Math.ceil(W / FS);
+    drops = Array.from({ length: cols }, () => Math.random() * -H / FS);
+    ctx.fillStyle = '#020602'; ctx.fillRect(0, 0, W, H);
+    if (reduce) still();
+  }
+  function still() {
+    ctx.font = FS + 'px "JetBrains Mono", monospace';
+    for (let c = 0; c < cols; c++) {
+      if (Math.random() < .5) continue;
+      const len = 4 + (Math.random() * 14) | 0, y0 = (Math.random() * H / FS) | 0;
+      for (let k = 0; k < len; k++) {
+        ctx.fillStyle = `rgba(0,255,65,${(k + 1) / len * .7})`;
+        ctx.fillText(g(), c * FS, (y0 + k) * FS);
+      }
+    }
+  }
+  function frame(t) {
+    raf = requestAnimationFrame(frame);
+    if (t - last < 50) return; last = t;
+    if (document.getElementById('scrLogin').hidden) return;
+    ctx.fillStyle = 'rgba(2,6,2,.09)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = FS + 'px "JetBrains Mono", monospace';
+    for (let c = 0; c < cols; c++) {
+      const y = drops[c] * FS;
+      if (y > 0) {
+        ctx.fillStyle = '#c8ffd4'; ctx.fillText(g(), c * FS, y);
+        ctx.fillStyle = '#00ff41'; ctx.fillText(g(), c * FS, y - FS);
+      }
+      drops[c] += 1;
+      if (y > H && Math.random() > .975) drops[c] = Math.random() * -20;
+    }
+  }
+  size();
+  addEventListener('resize', size);
+  if (!reduce) raf = requestAnimationFrame(frame);
+  // only behind the sign-in form: hide on the daily report
+  new MutationObserver(() => { cv.style.display = document.getElementById('scrLogin').hidden ? 'none' : ''; })
+    .observe(document.getElementById('scrLogin'), { attributes: true, attributeFilter: ['hidden'] });
+  cv.style.display = document.getElementById('scrLogin').hidden ? 'none' : '';
+})();
+</script>
+</body>
+</html>

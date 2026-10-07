@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Warehouse Layout · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<style>
+  /* ---------- search ---------- */
+  .search-row { display: flex; gap: 10px; }
+  .search-row input { flex: 1 1 auto; min-width: 0; }
+  .search-row .btn { flex: 0 0 auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    min-width: 40px; min-height: 40px; padding: 0 8px;
+    background: transparent; color: var(--text);
+    border: 1px solid var(--line); font-family: var(--mono); font-size: 14px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--white); background: var(--hover); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+  .seg { display: inline-flex; border: 1px solid var(--line); }
+  .seg .chip { border: 0; }
+  .seg .chip + .chip { border-left: 1px solid var(--line); }
+  .sub-label { font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+
+  /* ---------- counters ---------- */
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .stat { border: 1px solid var(--line); padding: 8px 14px; min-width: 110px; }
+  .stat b { display: block; font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; color: var(--accent); }
+  .stat span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .stat.dim b { color: var(--white); }
+
+  /* ---------- rack (front view) ---------- */
+  .side-title { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); margin: 18px 0 6px; }
+  .rack-scroll { overflow-x: auto; border: 1px solid var(--line-dim); background: #010401; }
+  table.rack { border-collapse: separate; border-spacing: 0; width: auto; font-size: 11px; }
+  table.rack th, table.rack td { border: 0; padding: 0; background: transparent; }
+  table.rack thead th.sec {
+    text-align: center; color: var(--accent); font-weight: 500; letter-spacing: 0;
+    padding: 6px 0 4px; border-left: 4px solid #010401; border-bottom: 1px solid var(--line);
+    text-transform: none; font-size: 11px; background: #010401;
+  }
+  table.rack th.lvl, table.rack thead th.corner {
+    position: sticky; left: 0; z-index: 2;
+    min-width: 46px; padding: 0 8px; text-align: right;
+    background: var(--panel-2); color: var(--soft); font-weight: 500; font-size: 12px;
+    border-right: 1px solid var(--line);
+  }
+  table.rack th.lvl small { color: var(--muted); font-size: 9px; letter-spacing: .08em; display: block; line-height: 1; }
+  table.rack td.cell {
+    width: 14px; min-width: 14px; height: 26px;
+    border: 1px solid var(--line-dim);
+  }
+  table.rack td.cell.a { border-left: 5px solid #010401; }
+  table.rack td.cell.occ { background: var(--accent); border-color: #013d10; cursor: pointer; }
+  table.rack td.cell.occ:hover { background: var(--white); }
+  table.rack td.cell.blocked { background: repeating-linear-gradient(45deg, #1f7a3a 0 3px, transparent 3px 6px); }
+  table.rack td.cell.sel { outline: 2px solid var(--white); outline-offset: -2px; }
+  table.rack td.cell:focus-visible { outline: 2px solid var(--white); outline-offset: -2px; }
+  table.rack tr.ground td.cell { border-bottom: 3px solid var(--soft); }
+  table.rack td.cnt, table.rack thead th.cnt {
+    min-width: 64px; padding: 0 10px; text-align: right; white-space: nowrap;
+    color: var(--white); font-size: 12px; border-left: 1px solid var(--line);
+    font-weight: 500; letter-spacing: 0; text-transform: none; background: var(--panel-2);
+  }
+  table.rack thead th.cnt { color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+
+  /* ---------- floor plan (top view) ---------- */
+  .plan-scroll { overflow-x: auto; padding: 4px 0 8px; }
+  .plan { display: flex; gap: 10px; align-items: flex-start; width: max-content; margin: 0 auto; }
+  .aisle { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .aisle-h { font-size: 12px; color: var(--accent); font-weight: 700; line-height: 1; }
+  .aisle-grid { display: grid; grid-template-columns: 12px 12px; column-gap: 5px; row-gap: 2px; position: relative; }
+  .pc { width: 12px; height: 12px; border: 1px solid var(--line-dim); }
+  .pc.stock { background: #0b3a19; border-color: #0f4d22; }
+  .pc.hit { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 6px rgba(0,255,65,.7); cursor: pointer; }
+  .pc.hit:hover, .pc.hit:focus-visible { background: var(--white); outline: none; }
+  .pc.sel { outline: 2px solid var(--white); outline-offset: 1px; }
+  .aisle-dir { display: grid; grid-template-columns: 12px 12px; column-gap: 5px; font-size: 9px; color: var(--muted); text-align: center; line-height: 1; }
+  .entrance { text-align: center; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--soft); margin-top: 12px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 6px; border: 1px solid var(--line-dim); }
+  .legend i.occ { background: var(--accent); border-color: var(--accent); }
+  .legend i.stock { background: #0b3a19; border-color: #0f4d22; }
+
+  /* ---------- advanced view ---------- */
+  .adv-open { margin-top: 14px; flex: 0 0 auto; letter-spacing: .08em; }
+  .adv {
+    position: fixed; inset: 0; z-index: 2500;
+    display: flex; flex-direction: column;
+    background: #010401;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  .adv[hidden] { display: none; }
+  .adv-bar, .adv-sub { opacity: 0; transition: opacity .35s ease; }
+  .adv.ready .adv-bar, .adv.ready .adv-sub { opacity: 1; }
+  .adv-bar {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); background: rgba(2,6,2,.97);
+  }
+  .adv-field { display: flex; flex-direction: column; gap: 4px; }
+  .adv-field label { margin: 0; font-size: 12px; color: var(--accent); }
+  .adv-field label::before { content: "["; color: var(--muted); }
+  .adv-field label::after { content: "]"; color: var(--muted); }
+  .adv-field input[type="text"] { width: 110px; min-height: 40px; padding: 6px 10px; font-size: 14px; }
+  .adv-grow input[type="text"] { width: 190px; }
+  .adv-check input { margin: 9px 0 10px; }
+  .adv-exit { flex: 0 0 auto; margin-left: auto; min-height: 40px; }
+  .adv-sub {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
+    padding: 6px 14px; font-size: 12px; color: var(--soft); border-bottom: 1px solid var(--line-dim);
+  }
+  .adv-lvl { color: var(--white); font-family: var(--display); font-size: 22px; line-height: 1; }
+  .adv-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .adv-legend i { display: inline-block; width: 11px; height: 11px; margin-right: 6px; vertical-align: -1px; }
+  .adv-count { margin-left: auto; color: var(--accent); }
+  .adv-map { position: relative; flex: 1 1 auto; overflow: auto; -webkit-overflow-scrolling: touch; }
+  #advCanvas { display: block; opacity: 0; transition: opacity .25s ease; }
+  .adv.ready #advCanvas { opacity: 1; }
+  .adv-tip {
+    position: absolute; z-index: 4; width: 250px; max-width: calc(100vw - 32px);
+    padding: 10px 12px; font-size: 12px; line-height: 1.45; color: var(--text);
+    background: #020a03; border: 1px solid var(--accent);
+    box-shadow: 0 0 22px rgba(0,255,65,.25); pointer-events: none;
+  }
+  .adv-tip::before {             /* the line from the comment to its cell, like an Excel comment */
+    content: ""; position: absolute; top: 12px; left: -15px; width: 15px; height: 1px; background: var(--accent);
+  }
+  .adv-tip.flip::before { left: auto; right: -15px; }
+  .adv-tip b { color: var(--white); font-size: 14px; }
+  .adv-tip .row { display: flex; justify-content: space-between; gap: 10px; }
+  .adv-tip .row span:first-child { color: var(--muted); }
+  .adv-tip .note { margin-top: 6px; color: var(--warn); }
+  .adv-tip .stock { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-dim); }
+  .adv-tip .sw { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: 0; }
+  .adv-intro {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    padding: 24px; text-align: center; background: #010401;
+    transition: opacity .35s ease;
+  }
+  .adv-intro.fade { opacity: 0; pointer-events: none; background: transparent; }
+  .adv-intro.gone { display: none; }
+  .adv-intro h2 {
+    font-family: var(--display); font-weight: 400; font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1;
+    color: var(--white); text-shadow: 0 0 16px rgba(0,255,65,.45);
+  }
+  .adv-intro p { max-width: 52ch; color: var(--soft); font-size: 14px; }
+  .adv-slot { flex: 0 0 auto; }
+  .adv-understand { flex: 0 0 auto; min-width: 200px; letter-spacing: .1em; }
+  .adv-fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+  @media (max-width: 640px) {
+    .adv-field input[type="text"] { width: 84px; }
+    .adv-grow { flex: 1 1 100%; }
+    .adv-grow input[type="text"] { width: 100%; }
+  }
+
+  .warn { border: 1px dashed var(--warn); color: var(--warn); padding: 8px 12px; font-size: 13px; margin-top: 12px; }
+  .warn:empty { display: none; }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Warehouse Layout', page_title: 'Warehouse layout',
+    page_sub: 'Load stock from Excel, then choose a rack or a product to see where everything is.',
+    excel_title: 'Import stock from Excel',
+    excel_desc: 'Same file as Inventory search: A = location, B = product, C = pallet ID, D = quantity. Optional: E = status (reserved / blocked), F = pallet type (EU / BLOCK). Location A013D = rack A, section 01, level 3, position D.',
+    btn_demo: 'Load demo data', demo_loaded: 'Demo data loaded: {n} occupied locations.',
+    loaded: '{n} occupied locations loaded.', invalid_locs: '{n} rows were skipped because the location is not in the A013D format.',
+    search_title: 'Rack or product', lbl_search: 'Type a rack letter (A–S) or a product', ph_search: 'e.g. C or PRD-1042', btn_show: 'Show',
+    lbl_racks: 'Racks', lbl_height: 'Rack height', h_3: '3', h_6: '6', h_hint: 'Rack view shows levels 0–{h}.',
+    need_data: 'Load an Excel file or the demo data first.',
+    not_found: 'No rack or product matches “{q}”.', multi: '{n} products contain “{q}”. Choose one from the list.',
+    rack_title: 'Rack {r}', side_left: 'Left side · sections 00–21 · going in', side_right: 'Right side · sections 22–43 · coming out',
+    st_positions: 'Positions', st_occupied: 'Occupied', st_empty: 'Empty',
+    col_empty: 'Empty', ground: 'ground',
+    hidden_above: '{n} occupied locations above level {h} are not shown. Choose height 6 to see them.',
+    rack_hint: 'Each small cell is one position (A–D). Tap a filled cell to see what is stored there.',
+    plan_title: 'Floor plan · {p}', plan_hint: 'Each square is one section, all levels together. Tap a highlighted section to see its locations.',
+    plan_summary: '{locs} locations in {secs} sections · total quantity {qty}',
+    legend_hit: 'This product', legend_stock: 'Other stock', legend_empty: 'Empty', legend_occ: 'Occupied',
+    entrance: 'Entrance = exit',
+    details_title: 'Details', col_loc: 'Location', col_level: 'Level', col_pos: 'Pos.', col_prod: 'Product', col_pallet: 'Pallet ID', col_qty: 'Qty',
+    empty_loc: 'This location is empty.', section_of: 'Rack {r} · section {s}',
+    btn_advanced: '[ Advanced ]', adv_title: 'Advanced view',
+    adv_intro: 'Each section is a square of four positions: A and B at the top, C and D at the bottom. The colour shows the status of each position.',
+    understand: 'Understand',
+    st_empty: 'Empty', st_occupied: 'Occupied', st_reserved: 'Reserved', st_blocked: 'Blocked',
+    f_product: 'Product', f_level: 'Level', f_ptype: 'Pallet type', f_empty: 'Empty', btn_exit: 'Exit',
+    ph_all: 'all', adv_level: 'Level {l}', adv_match: '{n} positions match the filter',
+    adv_hint: 'Hover or tap a position for details.',
+    tip_level: 'Level', tip_pos: 'Position', tip_status: 'Status', tip_type: 'Pallet type',
+    tip_auto: 'Blocked automatically: this section has block pallets, so one position per level stays free.',
+    tip_over: 'No free position left to block on this level: too many pallets for a block section.',
+    tip_mixed: 'EU and block pallets are mixed in this section.',
+    adv_no_data: 'Load an Excel file or the demo data first.'
+  },
+  nl: {
+    doc_title: 'Magazijnindeling', page_title: 'Magazijnindeling',
+    page_sub: 'Laad de voorraad uit Excel en kies een stelling of product om te zien waar alles staat.',
+    excel_title: 'Voorraad importeren uit Excel',
+    excel_desc: 'Hetzelfde bestand als bij Voorraad zoeken: A = locatie, B = product, C = pallet-ID, D = aantal. Optioneel: E = status (gereserveerd / geblokkeerd), F = pallettype (EU / BLOCK). Locatie A013D = stelling A, sectie 01, niveau 3, positie D.',
+    btn_demo: 'Demogegevens laden', demo_loaded: 'Demogegevens geladen: {n} bezette locaties.',
+    loaded: '{n} bezette locaties geladen.', invalid_locs: '{n} regels overgeslagen omdat de locatie niet het formaat A013D heeft.',
+    search_title: 'Stelling of product', lbl_search: 'Typ een stellingletter (A–S) of een product', ph_search: 'bijv. C of PRD-1042', btn_show: 'Tonen',
+    lbl_racks: 'Stellingen', lbl_height: 'Stellinghoogte', h_3: '3', h_6: '6', h_hint: 'Stellingweergave toont niveau 0–{h}.',
+    need_data: 'Laad eerst een Excel-bestand of de demogegevens.',
+    not_found: 'Geen stelling of product gevonden voor “{q}”.', multi: '{n} producten bevatten “{q}”. Kies er een uit de lijst.',
+    rack_title: 'Stelling {r}', side_left: 'Linkerkant · secties 00–21 · heen', side_right: 'Rechterkant · secties 22–43 · terug',
+    st_positions: 'Posities', st_occupied: 'Bezet', st_empty: 'Leeg',
+    col_empty: 'Leeg', ground: 'vloer',
+    hidden_above: '{n} bezette locaties boven niveau {h} worden niet getoond. Kies hoogte 6 om ze te zien.',
+    rack_hint: 'Elk klein vak is één positie (A–D). Tik op een gevuld vak om te zien wat er staat.',
+    plan_title: 'Plattegrond · {p}', plan_hint: 'Elk vierkant is één sectie, alle niveaus samen. Tik op een gemarkeerde sectie voor de locaties.',
+    plan_summary: '{locs} locaties in {secs} secties · totaal aantal {qty}',
+    legend_hit: 'Dit product', legend_stock: 'Andere voorraad', legend_empty: 'Leeg', legend_occ: 'Bezet',
+    entrance: 'Ingang = uitgang',
+    details_title: 'Details', col_loc: 'Locatie', col_level: 'Niveau', col_pos: 'Pos.', col_prod: 'Product', col_pallet: 'Pallet-ID', col_qty: 'Aantal',
+    empty_loc: 'Deze locatie is leeg.', section_of: 'Stelling {r} · sectie {s}',
+    btn_advanced: '[ Geavanceerd ]', adv_title: 'Geavanceerde weergave',
+    adv_intro: 'Elke sectie is een vierkant van vier posities: A en B boven, C en D onder. De kleur toont de status van elke positie.',
+    understand: 'Begrepen',
+    st_empty: 'Leeg', st_occupied: 'Bezet', st_reserved: 'Gereserveerd', st_blocked: 'Geblokkeerd',
+    f_product: 'Product', f_level: 'Niveau', f_ptype: 'Pallettype', f_empty: 'Leeg', btn_exit: 'Sluiten',
+    ph_all: 'alle', adv_level: 'Niveau {l}', adv_match: '{n} posities voldoen aan het filter',
+    adv_hint: 'Wijs of tik op een positie voor details.',
+    tip_level: 'Niveau', tip_pos: 'Positie', tip_status: 'Status', tip_type: 'Pallettype',
+    tip_auto: 'Automatisch geblokkeerd: deze sectie heeft blokpallets, dus één positie per niveau blijft vrij.',
+    tip_over: 'Geen vrije positie meer om te blokkeren op dit niveau: te veel pallets voor een bloksectie.',
+    tip_mixed: 'EU- en blokpallets staan gemengd in deze sectie.',
+    adv_no_data: 'Laad eerst een Excel-bestand of de demogegevens.'
+  },
+  hr: {
+    doc_title: 'Raspored skladišta', page_title: 'Raspored skladišta',
+    page_sub: 'Učitajte zalihe iz Excela, zatim odaberite rack ili proizvod i pogledajte gdje se sve nalazi.',
+    excel_title: 'Uvoz zaliha iz Excela',
+    excel_desc: 'Ista datoteka kao u Pretrazi inventara: A = lokacija, B = proizvod, C = ID palete, D = količina. Neobavezno: E = status (rezervirano / blokirano), F = tip palete (EU / BLOCK). Lokacija A013D = rack A, sekcija 01, nivo 3, pozicija D.',
+    btn_demo: 'Učitaj demo podatke', demo_loaded: 'Demo podaci učitani: {n} zauzetih lokacija.',
+    loaded: 'Učitano {n} zauzetih lokacija.', invalid_locs: 'Preskočeno {n} redaka jer lokacija nije u formatu A013D.',
+    search_title: 'Rack ili proizvod', lbl_search: 'Upišite slovo racka (A–S) ili proizvod', ph_search: 'npr. C ili PRD-1042', btn_show: 'Prikaži',
+    lbl_racks: 'Rackovi', lbl_height: 'Visina racka', h_3: '3', h_6: '6', h_hint: 'Prikaz racka prikazuje nivoe 0–{h}.',
+    need_data: 'Najprije učitajte Excel datoteku ili demo podatke.',
+    not_found: 'Nema racka ni proizvoda za „{q}”.', multi: '{n} proizvoda sadrži „{q}”. Odaberite jedan s popisa.',
+    rack_title: 'Rack {r}', side_left: 'Lijeva strana · sekcije 00–21 · ulaz', side_right: 'Desna strana · sekcije 22–43 · povratak',
+    st_positions: 'Pozicije', st_occupied: 'Zauzeto', st_empty: 'Prazno',
+    col_empty: 'Prazno', ground: 'pod',
+    hidden_above: '{n} zauzetih lokacija iznad nivoa {h} nije prikazano. Odaberite visinu 6 da ih vidite.',
+    rack_hint: 'Svaka mala ćelija je jedna pozicija (A–D). Dodirnite ispunjenu ćeliju da vidite što je na njoj.',
+    plan_title: 'Tlocrt · {p}', plan_hint: 'Svaki kvadrat je jedna sekcija, svi nivoi zajedno. Dodirnite označenu sekciju za popis lokacija.',
+    plan_summary: '{locs} lokacija u {secs} sekcija · ukupna količina {qty}',
+    legend_hit: 'Ovaj proizvod', legend_stock: 'Ostale zalihe', legend_empty: 'Prazno', legend_occ: 'Zauzeto',
+    entrance: 'Ulaz = izlaz',
+    details_title: 'Detalji', col_loc: 'Lokacija', col_level: 'Nivo', col_pos: 'Poz.', col_prod: 'Proizvod', col_pallet: 'ID palete', col_qty: 'Količina',
+    empty_loc: 'Ova lokacija je prazna.', section_of: 'Rack {r} · sekcija {s}',
+    btn_advanced: '[ Napredno ]', adv_title: 'Napredni prikaz',
+    adv_intro: 'Svaka sekcija je kvadrat od četiri pozicije: A i B gore, C i D dolje. Boja pokazuje status svake pozicije.',
+    understand: 'Razumijem',
+    st_empty: 'Prazno', st_occupied: 'Zauzeto', st_reserved: 'Rezervirano', st_blocked: 'Blokirano',
+    f_product: 'Proizvod', f_level: 'Nivo', f_ptype: 'Tip palete', f_empty: 'Prazno', btn_exit: 'Izlaz',
+    ph_all: 'sve', adv_level: 'Nivo {l}', adv_match: '{n} pozicija odgovara filteru',
+    adv_hint: 'Prijeđite mišem ili dodirnite poziciju za detalje.',
+    tip_level: 'Nivo', tip_pos: 'Pozicija', tip_status: 'Status', tip_type: 'Tip palete',
+    tip_auto: 'Automatski blokirano: sekcija ima blok palete, pa jedna pozicija po nivou ostaje slobodna.',
+    tip_over: 'Na ovom nivou nema slobodne pozicije za blokiranje: previše paleta za blok sekciju.',
+    tip_mixed: 'U ovoj sekciji su pomiješane EU i blok palete.',
+    adv_no_data: 'Najprije učitajte Excel datoteku ili demo podatke.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="layout">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://inventory/layout</div>
+  <h1 data-i18n="page_title">Warehouse layout</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="excel_title">Import stock from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="btn-group" style="margin-top:10px">
+        <button type="button" class="btn btn-secondary" id="btnDemo" data-i18n="btn_demo">Load demo data</button>
+      </div>
+      <div class="status" id="loadStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+      <div class="status" id="invalidStatus" style="color:var(--warn)"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="search_title">Rack or product</h2>
+    <div class="card-body">
+      <label for="query" data-i18n="lbl_search">Type a rack letter or a product</label>
+      <div class="search-row">
+        <input type="text" id="query" list="queryOptions" autocomplete="off" autocapitalize="characters" data-i18n-placeholder="ph_search">
+        <button type="button" class="btn btn-primary" id="btnShow" data-i18n="btn_show">Show</button>
+      </div>
+      <datalist id="queryOptions"></datalist>
+
+      <div class="sub-label" data-i18n="lbl_racks">Racks</div>
+      <div class="chips" id="rackChips"></div>
+
+      <div class="sub-label" data-i18n="lbl_height">Rack height</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+        <div class="seg" role="group" id="heightSeg">
+          <button type="button" class="chip" data-h="3" aria-pressed="true" data-i18n="h_3">3</button>
+          <button type="button" class="chip" data-h="6" aria-pressed="false" data-i18n="h_6">6</button>
+        </div>
+        <span class="muted" id="heightHint" style="font-size:12px"></span>
+      </div>
+      <button type="button" class="btn btn-secondary adv-open" id="btnAdvanced" data-i18n="btn_advanced">[ Advanced ]</button>
+      <div class="status" id="searchStatus" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card" id="viewCard" hidden>
+    <h2 id="viewTitle"></h2>
+    <div class="card-body" id="viewBody"></div>
+  </section>
+
+  <section class="card" id="detailCard" hidden>
+    <h2><span data-i18n="details_title">Details</span> <span id="detailTitle" style="color:var(--white)"></span></h2>
+    <div id="detailBody"></div>
+  </section>
+</main>
+
+<!-- ===== Advanced view (full-screen pop-up) ===== -->
+<div class="adv" id="adv" role="dialog" aria-modal="true" aria-labelledby="advTitle" hidden>
+  <div class="adv-bar" id="advBar">
+    <div class="adv-field adv-grow">
+      <label for="advProduct" data-i18n="f_product">Product</label>
+      <input type="text" id="advProduct" list="advProducts" autocomplete="off" data-i18n-placeholder="ph_all">
+    </div>
+    <div class="adv-field">
+      <label for="advLevel" data-i18n="f_level">Level</label>
+      <input type="text" id="advLevel" list="advLevels" inputmode="numeric" autocomplete="off" value="0">
+    </div>
+    <div class="adv-field">
+      <label for="advType" data-i18n="f_ptype">Pallet type</label>
+      <input type="text" id="advType" list="advTypes" autocomplete="off" autocapitalize="characters" data-i18n-placeholder="ph_all">
+    </div>
+    <div class="adv-field adv-check">
+      <label for="advEmpty" data-i18n="f_empty">Empty</label>
+      <input type="checkbox" id="advEmpty">
+    </div>
+    <button type="button" class="btn btn-danger adv-exit" id="advExit" data-i18n="btn_exit">Exit</button>
+  </div>
+  <div class="adv-sub" id="advSub">
+    <span class="adv-lvl" id="advLvlLabel"></span>
+    <span class="adv-legend" id="advLegend"></span>
+    <span class="adv-count" id="advCount"></span>
+  </div>
+  <div class="adv-map" id="advMap">
+    <canvas id="advCanvas"></canvas>
+    <div class="adv-tip" id="advTip" hidden></div>
+  </div>
+  <div class="adv-intro" id="advIntro">
+    <h2 id="advTitle" data-i18n="adv_title">Advanced view</h2>
+    <div class="adv-slot" id="advSlot" aria-hidden="true"></div>
+    <p data-i18n="adv_intro"></p>
+    <button type="button" class="btn btn-primary adv-understand" id="advUnderstand" data-i18n="understand">Understand</button>
+  </div>
+  <canvas class="adv-fx" id="advFx" aria-hidden="true"></canvas>
+  <datalist id="advProducts"></datalist>
+  <datalist id="advLevels"><option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option><option value="6"></option></datalist>
+  <datalist id="advTypes"><option value="EU"></option><option value="BLOCK"></option></datalist>
+</div>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+/* =====================================================================
+   Warehouse layout
+   Location code: A013D = rack A · section 01 · level 3 · position D
+   A 6-character code (e.g. BA013D) is read without its first letter.
+   ===================================================================== */
+const RACKS = 'ABCDEFGHIJKLMNOPQRS'.split('');
+const SECTIONS = 44;                 // 00–43
+const LEFT = [...Array(22).keys()];                  // 00–21, going in
+const RIGHT = [...Array(22).keys()].map(i => i + 22); // 22–43, coming out
+const POSITIONS = ['A', 'B', 'C', 'D'];
+const MAX_LEVEL = 6;                 // database has levels 0–6
+const HEIGHTS = { 3: 3, 6: 6 };      // height choice -> highest level shown (0 = ground)
+
+const $ = (id) => document.getElementById(id);
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmt = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+
+let locs = new Map();       // 'A013D' -> [{product, pallet, qty}]  (only occupied)
+let meta = new Map();       // 'A013D' -> {status: 'reserved'|'blocked', ptype: 'EU'|'BLOCK'}  (columns E, F)
+let products = new Map();   // 'PRD-1' -> [{code, rack, sec, lvl, pos, pallet, qty}]
+let invalidRows = 0;
+let height = 3;
+let view = null;            // {type:'rack', rack} | {type:'product', name}
+let selected = null;        // selected location code or section key
+
+/* ---------- parsing ---------- */
+function parseLoc(raw) {
+  let s = String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/^[A-Z]{2}\d{3}[A-Z]$/.test(s)) s = s.slice(1);          // ignore the first letter
+  const m = s.match(/^([A-Z])(\d{2})(\d)([A-D])$/);
+  if (!m) return null;
+  const sec = parseInt(m[2], 10), lvl = parseInt(m[3], 10);
+  if (sec >= SECTIONS || lvl > MAX_LEVEL) return null;
+  return { code: s, rack: m[1], sec, lvl, pos: m[4] };
+}
+
+function setData(rows) {
+  locs = new Map(); products = new Map(); meta = new Map(); invalidRows = 0;
+  rows.forEach(r => {
+    if (!r || !r.length) return;
+    const raw = String(r[0] ?? '').trim();
+    if (!raw) return;
+    const loc = parseLoc(raw);
+    if (!loc) { invalidRows++; return; }
+    const product = String(r[1] ?? '').trim();
+    const pallet = String(r[2] ?? '').trim();
+    const qtyRaw = r[3];
+    const qty = qtyRaw === undefined || qtyRaw === null || String(qtyRaw).trim() === '' ? 0 : (parseFloat(qtyRaw) || 0);
+    const status = parseStatus(r[4]);
+    const ptype = parseType(r[5]);
+    if (status || ptype) {
+      const m = meta.get(loc.code) || {};
+      if (status) m.status = status;
+      if (ptype) m.ptype = ptype;
+      meta.set(loc.code, m);
+    }
+    if (!product && !pallet && !qty) return;                    // listed but empty
+    if (!locs.has(loc.code)) locs.set(loc.code, []);
+    locs.get(loc.code).push({ product, pallet, qty });
+    if (product) {
+      if (!products.has(product)) products.set(product, []);
+      products.get(product).push({ ...loc, pallet, qty });
+    }
+  });
+  computeAdv();
+  fillOptions();
+  if (invalidRows) WSK.setText($('invalidStatus'), 'invalid_locs', { n: invalidRows });
+  else WSK.setText($('invalidStatus'), null);
+  render();
+}
+
+/* ---------- Excel ---------- */
+$('excelFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  WSK.readWorkbook(file, (wb) => {
+    const data = { rows: WSK.sheetRows(wb, 0) };
+    loadRows(data);
+    source.saved(file.name, data);
+  }, $('loadStatus'));
+});
+
+function loadRows(data) {
+  setData((data.rows || []).slice(1));
+  WSK.setText($('loadStatus'), 'loaded', { n: locs.size });
+}
+
+// master workbook: Stock sheet (same columns as this page)
+const source = WSKSession.wireModule({
+  page: 'layout', srcEl: $('srcLine'), load: loadRows,
+  fromMain: () => {
+    const st = WSKSession.sheet('stock');
+    return st.length ? { rows: [['location', 'product', 'pallet', 'qty', 'status', 'type'], ...st] } : null;
+  }
+});
+
+/* ---------- demo data ---------- */
+$('btnDemo').addEventListener('click', () => {
+  let seed = 42;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const prods = Array.from({ length: 120 }, (_, i) => 'PRD-' + (1001 + i));
+  const rows = [];
+  RACKS.forEach(r => {
+    for (let s = 0; s < SECTIONS; s++) {
+      // like a real warehouse: one main product per section, a few mixed pallets
+      const main = prods[Math.floor(rnd() * prods.length)];
+      const type = rnd() < 0.25 ? 'BLOCK' : 'EU';             // whole section, all levels
+      for (let l = 0; l <= MAX_LEVEL; l++) for (const p of POSITIONS) {
+        const code = r + pad2(s) + l + p;
+        if (type === 'BLOCK' && p === 'C') continue;            // block sections hold 3 pallets
+        const fill = l === 0 ? 0.75 : l <= 3 ? 0.55 : 0.3;
+        if (rnd() < fill) {
+          const prod = rnd() < 0.85 ? main : prods[Math.floor(rnd() * prods.length)];
+          // now and then a worker puts a block pallet in an EU section
+          const pt = type === 'EU' && p === 'C' && rnd() < 0.004 ? 'BLOCK' : type;
+          rows.push([code, prod, 'PAL' + Math.floor(100000 + rnd() * 899999), Math.ceil(rnd() * 48), '', pt]);
+        } else {
+          const x = rnd();
+          if (x < 0.04) rows.push([code, '', '', '', 'RESERVED', type]);
+          else if (x < 0.05) rows.push([code, '', '', '', 'BLOCKED', '']);
+        }
+      }
+    }
+  });
+  setData(rows);
+  WSK.setText($('loadStatus'), 'demo_loaded', { n: locs.size });
+});
+
+/* ---------- search ---------- */
+function fillOptions() {
+  const opts = RACKS.map(r => `<option value="${r}">${WSK.esc(WSK.t('rack_title', { r }))}</option>`);
+  [...products.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(p => opts.push(`<option value="${WSK.esc(p)}"></option>`));
+  $('queryOptions').innerHTML = opts.join('');
+}
+
+function runQuery() {
+  const q = $('query').value.trim();
+  if (!q) return;
+  if (!locs.size && !products.size) { WSK.setText($('searchStatus'), 'need_data'); return; }
+  WSK.setText($('searchStatus'), null);
+
+  const rackMatch = q.match(/^(?:rack|stelling)?\s*([A-S])$/i);
+  if (rackMatch) { show({ type: 'rack', rack: rackMatch[1].toUpperCase() }); return; }
+
+  const lower = q.toLowerCase();
+  const names = [...products.keys()];
+  const exact = names.find(n => n.toLowerCase() === lower);
+  if (exact) { show({ type: 'product', name: exact }); return; }
+  const partial = names.filter(n => n.toLowerCase().includes(lower));
+  if (partial.length === 1) { $('query').value = partial[0]; show({ type: 'product', name: partial[0] }); return; }
+  if (partial.length > 1) WSK.setText($('searchStatus'), 'multi', { n: partial.length, q });
+  else WSK.setText($('searchStatus'), 'not_found', { q });
+}
+
+$('btnShow').addEventListener('click', runQuery);
+$('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') runQuery(); });
+$('query').addEventListener('change', () => {
+  // picking an entry from the dropdown triggers 'change' — show it straight away
+  const v = $('query').value.trim();
+  if (/^[A-S]$/i.test(v) || products.has(v)) runQuery();
+});
+
+/* rack chips */
+$('rackChips').innerHTML = RACKS.map(r => `<button type="button" class="chip" data-rack="${r}" aria-pressed="false">${r}</button>`).join('');
+$('rackChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rack]');
+  if (!b) return;
+  if (!locs.size && !products.size) { WSK.setText($('searchStatus'), 'need_data'); return; }
+  $('query').value = b.dataset.rack;
+  WSK.setText($('searchStatus'), null);
+  show({ type: 'rack', rack: b.dataset.rack });
+});
+
+/* height */
+$('heightSeg').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-h]');
+  if (!b) return;
+  height = HEIGHTS[b.dataset.h];
+  document.querySelectorAll('#heightSeg [data-h]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  updateHeightHint();
+  if (view && view.type === 'rack') render();
+});
+function updateHeightHint() { WSK.setText($('heightHint'), 'h_hint', { h: height }); }
+
+function show(v) {
+  view = v; selected = null;
+  document.querySelectorAll('#rackChips [data-rack]').forEach(b =>
+    b.setAttribute('aria-pressed', String(v.type === 'rack' && b.dataset.rack === v.rack)));
+  render();
+  $('viewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---------- rendering ---------- */
+function render() {
+  $('detailCard').hidden = true;
+  if (!view) { $('viewCard').hidden = true; return; }
+  $('viewCard').hidden = false;
+  if (view.type === 'rack') renderRack(view.rack);
+  else renderPlan(view.name);
+  if (selected) renderDetails();
+}
+
+function statBox(n, key, dim) {
+  return `<div class="stat${dim ? ' dim' : ''}"><b>${n}</b><span>${WSK.esc(WSK.t(key))}</span></div>`;
+}
+
+function renderRack(rack) {
+  WSK.setText($('viewTitle'), 'rack_title', { r: rack });
+  const levels = [];
+  for (let l = height; l >= 0; l--) levels.push(l);
+  let occTotal = 0;
+
+  const side = (sections, titleKey) => {
+    let head = `<tr><th class="corner"></th>${sections.map(s => `<th class="sec" colspan="4">${pad2(s)}</th>`).join('')}<th class="cnt">${WSK.esc(WSK.t('col_empty'))}</th></tr>`;
+    let body = levels.map(l => {
+      let empty = 0;
+      const cells = sections.map(s => POSITIONS.map(p => {
+        const code = rack + pad2(s) + l + p;
+        const occ = locs.has(code);
+        if (occ) occTotal++; else empty++;
+        const cls = 'cell' + (p === 'A' ? ' a' : '') + (occ ? ' occ' : '') + (selected === code ? ' sel' : '');
+        return `<td class="${cls}" data-loc="${code}" title="${code}"${occ ? ' tabindex="0"' : ''}></td>`;
+      }).join('')).join('');
+      const label = l === 0 ? `0<small>${WSK.esc(WSK.t('ground'))}</small>` : l;
+      return `<tr${l === 0 ? ' class="ground"' : ''}><th class="lvl" scope="row">${label}</th>${cells}<td class="cnt">${empty}</td></tr>`;
+    }).join('');
+    return `<div class="side-title">${WSK.esc(WSK.t(titleKey))}</div>
+      <div class="rack-scroll"><table class="rack"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  };
+
+  const leftHtml = side(LEFT, 'side_left');
+  const rightHtml = side(RIGHT, 'side_right');
+  const total = SECTIONS * POSITIONS.length * (height + 1);
+
+  let hidden = 0;
+  locs.forEach((_, code) => { if (code[0] === rack && parseInt(code[3], 10) > height) hidden++; });
+
+  $('viewBody').innerHTML = `
+    <div class="stats">${statBox(total, 'st_positions', true)}${statBox(occTotal, 'st_occupied')}${statBox(total - occTotal, 'st_empty', true)}</div>
+    <p class="hint">${WSK.esc(WSK.t('rack_hint'))}</p>
+    ${leftHtml}${rightHtml}
+    <div class="legend"><span><i class="occ"></i>${WSK.esc(WSK.t('legend_occ'))}</span><span><i></i>${WSK.esc(WSK.t('legend_empty'))}</span></div>
+    <div class="warn">${hidden ? WSK.esc(WSK.t('hidden_above', { n: hidden, h: height })) : ''}</div>`;
+}
+
+function renderPlan(name) {
+  WSK.setText($('viewTitle'), 'plan_title', { p: name });
+  const items = products.get(name) || [];
+  const hits = new Map();
+  items.forEach(it => {
+    const key = it.rack + pad2(it.sec);
+    if (!hits.has(key)) hits.set(key, []);
+    hits.get(key).push(it);
+  });
+  const stock = new Set();
+  locs.forEach((_, code) => stock.add(code.slice(0, 3)));
+  const qty = items.reduce((sum, it) => sum + (it.qty || 0), 0);
+
+  const cell = (rack, s) => {
+    const key = rack + pad2(s);
+    if (hits.has(key)) {
+      return `<div class="pc hit${selected === key ? ' sel' : ''}" data-sec="${key}" tabindex="0" role="button" title="${key} · ${hits.get(key).length}"></div>`;
+    }
+    return `<div class="pc${stock.has(key) ? ' stock' : ''}" title="${key}"></div>`;
+  };
+
+  const aisles = RACKS.map(r => {
+    let grid = '';
+    for (let row = 0; row < 22; row++) grid += cell(r, 21 - row) + cell(r, 22 + row);   // far end at the top
+    return `<div class="aisle">
+      <div class="aisle-h">${r}</div>
+      <div class="aisle-dir"><span>21</span><span>22</span></div>
+      <div class="aisle-grid">${grid}</div>
+      <div class="aisle-dir"><span>00</span><span>43</span></div>
+      <div class="aisle-dir"><span>↑</span><span>↓</span></div>
+    </div>`;
+  }).join('');
+
+  $('viewBody').innerHTML = `
+    <p class="hint">${WSK.esc(WSK.t('plan_summary', { locs: items.length, secs: hits.size, qty: fmt(qty) }))}</p>
+    <p class="hint">${WSK.esc(WSK.t('plan_hint'))}</p>
+    <div class="plan-scroll"><div class="plan">${aisles}</div><div class="entrance">▲ ${WSK.esc(WSK.t('entrance'))} ▼</div></div>
+    <div class="legend">
+      <span><i class="occ"></i>${WSK.esc(WSK.t('legend_hit'))}</span>
+      <span><i class="stock"></i>${WSK.esc(WSK.t('legend_stock'))}</span>
+      <span><i></i>${WSK.esc(WSK.t('legend_empty'))}</span>
+    </div>`;
+}
+
+/* ---------- details ---------- */
+$('viewBody').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-loc].occ, [data-sec]');
+  if (!c) return;
+  selected = c.dataset.loc || c.dataset.sec;
+  document.querySelectorAll('#viewBody .sel').forEach(x => x.classList.remove('sel'));
+  c.classList.add('sel');
+  renderDetails();
+  $('detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+$('viewBody').addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-loc].occ, [data-sec]')) { e.preventDefault(); e.target.click(); }
+});
+
+function renderDetails() {
+  $('detailCard').hidden = false;
+  const th = (k) => `<th>${WSK.esc(WSK.t(k))}</th>`;
+  if (view.type === 'rack') {
+    const entries = locs.get(selected) || [];
+    $('detailTitle').textContent = '· ' + selected;
+    $('detailBody').innerHTML = entries.length
+      ? `<div class="table-wrap"><table><thead><tr>${th('col_prod')}${th('col_pallet')}${th('col_qty')}</tr></thead><tbody>
+          ${entries.map(e => `<tr><td><strong>${WSK.esc(e.product || '—')}</strong></td><td><code>${WSK.esc(e.pallet)}</code></td><td class="num">${e.qty}</td></tr>`).join('')}
+        </tbody></table></div>`
+      : `<div class="card-body"><p class="muted">${WSK.esc(WSK.t('empty_loc'))}</p></div>`;
+  } else {
+    const rack = selected[0], sec = selected.slice(1);
+    const items = (products.get(view.name) || []).filter(it => it.rack === rack && pad2(it.sec) === sec)
+      .sort((a, b) => a.lvl - b.lvl || a.pos.localeCompare(b.pos));
+    $('detailTitle').textContent = '· ' + WSK.t('section_of', { r: rack, s: sec });
+    $('detailBody').innerHTML = `<div class="table-wrap"><table><thead><tr>${th('col_loc')}${th('col_level')}${th('col_pos')}${th('col_pallet')}${th('col_qty')}</tr></thead><tbody>
+      ${items.map(it => `<tr><td><span class="loc-tag">${it.code}</span></td><td class="num">${it.lvl}${it.lvl === 0 ? ' · ' + WSK.esc(WSK.t('ground')) : ''}</td><td>${it.pos}</td><td><code>${WSK.esc(it.pallet)}</code></td><td class="num">${it.qty}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+}
+
+/* =====================================================================
+   ADVANCED VIEW
+   Columns E (status) and F (pallet type) + the block-pallet rule:
+   a BLOCK section (all levels) holds 3 pallets per level, so on every
+   level C is blocked; if C is taken, the first free of A, B, D is.
+   ===================================================================== */
+const ADV_COLORS = { empty: '#00ff41', occupied: '#ffd23f', reserved: '#2f8bff', blocked: '#a3160f' };
+const ADV_DIM_OCC = '#0b3a19', ADV_DIM_LINE = '#0f4d22', ADV_MATCH = '#00ff41';
+const POS_GRID = { A: [0, 0], B: [1, 0], C: [0, 1], D: [1, 1] };  // column, row inside a section
+let adv = { pos: new Map(), sec: new Map() };
+
+function parseStatus(v) {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return null;
+  if (/^(RES|REZ|GERES)/.test(s)) return 'reserved';
+  if (/^(BLOK|BLOC|BLOCK|GEBLOK)/.test(s)) return 'blocked';
+  return null;
+}
+function parseType(v) {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return null;
+  if (/BLO[CK]/.test(s)) return 'BLOCK';
+  if (/^EU/.test(s) || /EURO/.test(s)) return 'EU';
+  return null;
+}
+
+function computeAdv() {
+  const pos = new Map(), sec = new Map();
+  RACKS.forEach(r => {
+    for (let s = 0; s < SECTIONS; s++) {
+      const key = r + pad2(s);
+      const types = new Set();
+      for (let l = 0; l <= MAX_LEVEL; l++) for (const p of POSITIONS) {
+        const m = meta.get(key + l + p);
+        if (m && m.ptype) types.add(m.ptype);
+      }
+      const type = types.has('BLOCK') ? 'BLOCK' : types.has('EU') ? 'EU' : null;
+      const info = { type, mixed: types.size > 1, over: new Set() };
+      sec.set(key, info);
+      for (let l = 0; l <= MAX_LEVEL; l++) {
+        const st = {};
+        POSITIONS.forEach(p => {
+          const code = key + l + p, m = meta.get(code);
+          st[p] = m && m.status === 'blocked' ? 'blocked'
+                : m && m.status === 'reserved' ? 'reserved'
+                : locs.has(code) ? 'occupied' : 'empty';
+        });
+        let auto = null;
+        if (type === 'BLOCK' && !POSITIONS.some(p => st[p] === 'blocked')) {
+          auto = st.C === 'empty' ? 'C' : (['A', 'B', 'D'].find(p => st[p] === 'empty') || null);
+          if (auto) st[auto] = 'blocked'; else info.over.add(l);
+        }
+        POSITIONS.forEach(p => pos.set(key + l + p, { st: st[p], auto: p === auto }));
+      }
+    }
+  });
+  adv = { pos, sec };
+}
+
+/* ---------- map geometry ---------- */
+const AG = { g1: 2, g2: 4, walk: 7, aisle: 12, pad: 16, top: 26, bottom: 44 };
+let geo = null;
+let advLevel = 0, advSel = null, advPinned = false;
+
+function layoutMap() {
+  const box = $('advMap');
+  const availW = box.clientWidth, availH = box.clientHeight;
+  const tw = Math.floor(((availW - 2 * AG.pad - 18 * AG.aisle) / 19 - AG.walk - 2 * AG.g1) / 4);
+  const th = Math.floor(((availH - AG.top - AG.bottom - 21 * AG.g2) / 22 - AG.g1) / 2);
+  const t = tw >= 7 ? Math.max(5, Math.min(14, tw, th)) : Math.max(5, Math.min(10, th));
+  const s = 2 * t + AG.g1, aisleW = 2 * s + AG.walk;
+  const planW = 19 * aisleW + 18 * AG.aisle, planH = 22 * s + 21 * AG.g2;
+  const W = Math.max(availW, planW + 2 * AG.pad);
+  const H = Math.max(availH, AG.top + planH + AG.bottom);
+  const ox = Math.round((W - planW) / 2);
+  const oy = AG.top + Math.max(0, Math.round((H - AG.top - planH - AG.bottom) / 2));
+  const secs = [];
+  for (let y = 0; y < 22; y++) for (let c = 0; c < 38; c++) {
+    const ai = Math.floor(c / 2), side = c % 2;
+    const sNum = side === 0 ? 21 - y : 22 + y;
+    secs.push({ key: RACKS[ai] + pad2(sNum), x: ox + ai * (aisleW + AG.aisle) + side * (s + AG.walk), y: oy + y * (s + AG.g2) });
+  }
+  geo = { t, s, aisleW, planW, planH, W, H, ox, oy, secs };
+  const cv = $('advCanvas'), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function posRect(sec, p) {
+  const [cx, cy] = POS_GRID[p];
+  return { x: sec.x + cx * (geo.t + AG.g1), y: sec.y + cy * (geo.t + AG.g1) };
+}
+
+function advFilters() {
+  return {
+    prod: $('advProduct').value.trim().toLowerCase(),
+    empty: $('advEmpty').checked,
+    type: parseType($('advType').value)
+  };
+}
+
+function posMatches(code, a, secKey, f) {
+  if (f.empty && a.st !== 'empty') return false;
+  if (f.type && (adv.sec.get(secKey) || {}).type !== f.type) return false;
+  if (f.prod) {
+    const entries = locs.get(code) || [];
+    if (!entries.some(e => e.product.toLowerCase().includes(f.prod))) return false;
+  }
+  return true;
+}
+
+/* colour of one position on the map (also used as landing colour of the animation) */
+function posColor(code, a, secKey, f) {
+  const filtering = f.prod || f.empty || f.type;
+  if (!filtering) return { fill: ADV_COLORS[a.st] };
+  if (posMatches(code, a, secKey, f)) return { fill: ADV_MATCH, match: true };
+  return a.st === 'empty' ? { line: ADV_DIM_LINE } : { fill: ADV_DIM_OCC };
+}
+
+function drawMap() {
+  if (!geo) return;
+  const ctx = $('advCanvas').getContext('2d');
+  const { t, s, aisleW } = geo;
+  ctx.clearRect(0, 0, geo.W, geo.H);
+  const f = advFilters();
+  const filtering = f.prod || f.empty || f.type;
+  let matches = 0;
+
+  // rack letters + direction labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  RACKS.forEach((r, i) => {
+    const cx = geo.ox + i * (aisleW + AG.aisle) + aisleW / 2;
+    ctx.fillStyle = '#00ff41'; ctx.font = '700 13px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillText(r, cx, geo.oy - 9);
+    ctx.fillStyle = '#5fd47f'; ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
+    const yb = geo.oy + geo.planH + 14;
+    ctx.fillText('00', cx - (s + AG.walk) / 2, yb); ctx.fillText('43', cx + (s + AG.walk) / 2, yb);
+    ctx.fillText('↑', cx - (s + AG.walk) / 2, yb + 12); ctx.fillText('↓', cx + (s + AG.walk) / 2, yb + 12);
+  });
+
+  // positions
+  geo.secs.forEach(sec => {
+    POSITIONS.forEach(p => {
+      const code = sec.key + advLevel + p, a = adv.pos.get(code);
+      if (!a) return;
+      const { x, y } = posRect(sec, p);
+      const c = posColor(code, a, sec.key, f);
+      if (c.match) matches++;
+      if (c.fill) { ctx.fillStyle = c.fill; ctx.fillRect(x, y, t, t); }
+      else { ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, t - 1, t - 1); }
+    });
+  });
+
+  // selected position: white frame + Excel-style comment marker
+  if (advSel) {
+    const sec = geo.secs.find(q => q.key === advSel.key);
+    if (sec) {
+      const { x, y } = posRect(sec, advSel.p);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(x - 1, y - 1, t + 2, t + 2);
+      ctx.fillStyle = '#ff3b30';
+      ctx.beginPath(); ctx.moveTo(x + t + 1, y - 1); ctx.lineTo(x + t + 1, y + Math.max(5, t / 2)); ctx.lineTo(x + t + 1 - Math.max(5, t / 2), y - 1); ctx.fill();
+    }
+  }
+
+  // entrance
+  ctx.fillStyle = '#5fd47f'; ctx.font = '11px "JetBrains Mono", ui-monospace, monospace';
+  ctx.fillText('▲ ' + WSK.t('entrance').toUpperCase() + ' ▼', geo.ox + geo.planW / 2, geo.oy + geo.planH + 40);
+
+  // header line under the bar
+  $('advLvlLabel').textContent = WSK.t('adv_level', { l: advLevel });
+  $('advLegend').innerHTML = filtering ? '' : ['empty', 'occupied', 'reserved', 'blocked'].map(k =>
+    `<span><i style="background:${ADV_COLORS[k]}"></i>${WSK.esc(WSK.t('st_' + k))}</span>`).join('');
+  $('advCount').textContent = filtering ? WSK.t('adv_match', { n: matches }) : WSK.t('adv_hint');
+}
+
+/* ---------- comment (tooltip) ---------- */
+function advHit(ev) {
+  const rect = $('advCanvas').getBoundingClientRect();
+  const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  for (const sec of geo.secs) {
+    if (x >= sec.x && x < sec.x + geo.s && y >= sec.y && y < sec.y + geo.s) {
+      const col = x - sec.x < geo.t + AG.g1 / 2 ? 0 : 1, row = y - sec.y < geo.t + AG.g1 / 2 ? 0 : 1;
+      return { key: sec.key, p: POSITIONS[row * 2 + col], sec };
+    }
+  }
+  return null;
+}
+
+function showTip(hit) {
+  const tip = $('advTip');
+  if (!hit) { tip.hidden = true; return; }
+  const code = hit.key + advLevel + hit.p;
+  const a = adv.pos.get(code), info = adv.sec.get(hit.key) || {};
+  const entries = locs.get(code) || [];
+  const row = (k, v) => `<div class="row"><span>${WSK.esc(WSK.t(k))}</span><span>${v}</span></div>`;
+  let html = `<b>${code}</b>` +
+    row('tip_status', `<i class="sw" style="background:${ADV_COLORS[a.st]}"></i>${WSK.esc(WSK.t('st_' + a.st))}`) +
+    row('tip_type', WSK.esc(info.type || '—'));
+  if (a.auto) html += `<div class="note">${WSK.esc(WSK.t('tip_auto'))}</div>`;
+  if (info.over && info.over.has(advLevel)) html += `<div class="note">${WSK.esc(WSK.t('tip_over'))}</div>`;
+  if (info.mixed) html += `<div class="note">${WSK.esc(WSK.t('tip_mixed'))}</div>`;
+  if (entries.length) {
+    html += `<div class="stock">` + entries.map(e =>
+      `<div><strong>${WSK.esc(e.product || '—')}</strong></div><div class="row"><span>${WSK.esc(e.pallet || '—')}</span><span>${e.qty}</span></div>`).join('') + `</div>`;
+  }
+  tip.innerHTML = html;
+  tip.hidden = false;
+  const { x, y } = posRect(hit.sec, hit.p);
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = x + geo.t + 16, flip = false;
+  if (left + tw > geo.W - 4) { left = x - tw - 16; flip = true; }
+  tip.classList.toggle('flip', flip);
+  tip.style.left = Math.max(4, left) + 'px';
+  tip.style.top = Math.max(4, Math.min(y - 8, geo.H - th - 4)) + 'px';
+}
+
+$('advCanvas').addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse' || advPinned || !geo) return;
+  const hit = advHit(e);
+  advSel = hit ? { key: hit.key, p: hit.p } : null;
+  drawMap(); showTip(hit);
+});
+$('advCanvas').addEventListener('pointerleave', () => {
+  if (advPinned) return;
+  advSel = null; drawMap(); showTip(null);
+});
+$('advCanvas').addEventListener('click', (e) => {
+  const hit = advHit(e);
+  if (!hit || (advPinned && advSel && advSel.key === hit.key && advSel.p === hit.p)) {
+    advPinned = false; advSel = null; drawMap(); showTip(null); return;
+  }
+  advPinned = true; advSel = { key: hit.key, p: hit.p }; drawMap(); showTip(hit);
+});
+
+/* ---------- filters ---------- */
+function onAdvFilter() {
+  const lv = parseInt($('advLevel').value, 10);
+  if (!isNaN(lv) && lv >= 0 && lv <= MAX_LEVEL) advLevel = lv;
+  advPinned = false; advSel = null; showTip(null);
+  drawMap();
+}
+['advProduct', 'advType', 'advLevel'].forEach(id => $(id).addEventListener('input', onAdvFilter));
+$('advEmpty').addEventListener('change', onAdvFilter);
+$('advLevel').addEventListener('blur', () => { $('advLevel').value = advLevel; });
+
+/* =====================================================================
+   ANIMATION — 836 cubes (one per section) travel:
+   legend → rotating cube → explosion → map (and back on exit)
+   ===================================================================== */
+const FX = { n: 38 * 22, parts: [], raf: 0, w: 0, h: 0, phase: 'idle' };
+const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const LEG = { A: hex(ADV_COLORS.empty), B: hex(ADV_COLORS.occupied), C: hex(ADV_COLORS.reserved), D: hex(ADV_COLORS.blocked) };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const mix = (a, b, k) => a + (b - a) * k;
+const mixC = (a, b, k) => [mix(a[0], b[0], k), mix(a[1], b[1], k), mix(a[2], b[2], k)];
+const rgb = (c, al = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${al})`;
+
+function fxSize() {
+  const cv = $('advFx'), dpr = window.devicePixelRatio || 1;
+  FX.w = window.innerWidth; FX.h = window.innerHeight;
+  cv.width = Math.round(FX.w * dpr); cv.height = Math.round(FX.h * dpr);
+  cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* legend: 38 × 22 blocks = the same 836 particles, split in four coloured quadrants */
+function legendGeo() {
+  const maxW = Math.min(560, FX.w - 32), maxH = Math.min(330, FX.h * 0.4);
+  const b = Math.max(5, Math.floor(Math.min((maxW - 6) / 38, (maxH - 6) / 22)));
+  const gap = Math.max(4, Math.round(b * 0.7));
+  const w = 38 * b + gap, h = 22 * b + gap;
+  const slot = $('advSlot');
+  slot.style.width = w + 'px'; slot.style.height = h + 'px';
+  const r = slot.getBoundingClientRect();
+  return { b, gap, x: r.left, y: r.top, w, h };
+}
+
+function legendPos(i, L) {
+  const c = i % 38, y = Math.floor(i / 38);
+  return { x: L.x + c * L.b + (c >= 19 ? L.gap : 0), y: L.y + y * L.b + (y >= 11 ? L.gap : 0) };
+}
+function legendColor(i) {
+  const c = i % 38, y = Math.floor(i / 38);
+  return LEG[y < 11 ? (c < 19 ? 'A' : 'B') : (c < 19 ? 'C' : 'D')];
+}
+
+function cubePoint(i) {
+  const j = Math.floor(i * 864 / FX.n), face = Math.floor(j / 144), q = j % 144;
+  const a = (q % 12 + .5) / 6 - 1, b = (Math.floor(q / 12) + .5) / 6 - 1;
+  return [[1, a, b], [-1, a, b], [a, 1, b], [a, -1, b], [a, b, 1], [a, b, -1]][face];
+}
+function cubeNormal(i) {
+  const face = Math.floor(Math.floor(i * 864 / FX.n) / 144);
+  return [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]][face];
+}
+function rotate(v, time) {
+  const ay = time * 0.0021 + .6, ax = .55 + Math.sin(time * 0.0009) * .35;
+  const [x, y, z] = v;
+  const x1 = x * Math.cos(ay) + z * Math.sin(ay), z1 = -x * Math.sin(ay) + z * Math.cos(ay);
+  return [x1, y * Math.cos(ax) - z1 * Math.sin(ax), y * Math.sin(ax) + z1 * Math.cos(ax)];
+}
+function project(pt, time, scale, p) {
+  const [x1, y1, z2] = rotate(pt, time);
+  const R = Math.min(FX.w, FX.h) * 0.17 * scale, persp = 4 / (4 + z2);
+  // flat shading per face: the face turned towards the viewer is brightest
+  const facing = p ? Math.max(0, -rotate(p.nrm, time)[2]) : 1;
+  return { x: FX.w / 2 + x1 * R * persp, y: FX.h / 2 + y1 * R * persp, z: z2, s: Math.max(2, R / 6 * persp * .8), f: facing };
+}
+function cubeColor(p, c) {
+  if (p.lit) return mixC([60, 255, 120], [200, 255, 210], c.f);           // the odd blinking light
+  return mixC([3, 22, 8], [0, 255, 65], (.12 + .8 * c.f) * p.grain);
+}
+
+function buildParticles(fromMap) {
+  const L = legendGeo();
+  const mapRect = $('advCanvas').getBoundingClientRect();
+  const f = advFilters();
+  FX.parts = [];
+  for (let i = 0; i < FX.n; i++) {
+    const lp = legendPos(i, L);
+    const sec = geo ? geo.secs[i] : null;
+    let mx = FX.w / 2, my = FX.h / 2, mcol = [0, 255, 65];
+    if (sec) {
+      mx = mapRect.left + sec.x; my = mapRect.top + sec.y;
+      const code = sec.key + advLevel + 'A', a = adv.pos.get(code);
+      const c = a ? posColor(code, a, sec.key, f) : null;
+      mcol = c && c.fill ? hex(c.fill) : hex(ADV_DIM_LINE);
+    }
+    const pt = cubePoint(i);
+    const len = Math.hypot(pt[0], pt[1], pt[2]);
+    const spread = Math.min(FX.w, FX.h) * (0.42 + Math.random() * 0.35);
+    FX.parts.push({
+      lx: lp.x, ly: lp.y, lc: legendColor(i), lb: L.b - 1,
+      mx, my, mc: mcol, ms: geo ? geo.s : 6,
+      pt, nrm: cubeNormal(i), grain: .78 + Math.random() * .22, lit: Math.random() < .045,
+      spread,
+      ex: pt[0] / len * spread + (Math.random() - .5) * 60, ey: pt[1] / len * spread + (Math.random() - .5) * 60,
+      d1: Math.random() * 260, d2: Math.random() * 320
+    });
+  }
+  return L;
+}
+
+function drawLegend() {
+  fxSize();
+  const L = buildParticles(false);
+  const ctx = $('advFx').getContext('2d');
+  ctx.clearRect(0, 0, FX.w, FX.h);
+  FX.parts.forEach(p => { ctx.fillStyle = rgb(p.lc); ctx.fillRect(p.lx, p.ly, p.lb, p.lb); });
+  // labels inside the quadrants
+  const half = { w: 19 * L.b, h: 11 * L.b };
+  const fs = Math.max(14, Math.round(L.b * 1.9));
+  ctx.font = `${fs}px VT323, "JetBrains Mono", monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [['A', 'empty', 0, 0, '#020602'], ['B', 'occupied', 1, 0, '#020602'], ['C', 'reserved', 0, 1, '#ffffff'], ['D', 'blocked', 1, 1, '#ffffff']]
+    .forEach(([letter, key, qx, qy, col]) => {
+      ctx.fillStyle = col;
+      ctx.fillText(`[${letter}] ${WSK.t('st_' + key).toUpperCase()}`,
+        L.x + qx * (half.w + L.gap) + half.w / 2, L.y + qy * (half.h + L.gap) + half.h / 2);
+    });
+}
+
+function renderFx(time, stage) {
+  const ctx = $('advFx').getContext('2d');
+  ctx.clearRect(0, 0, FX.w, FX.h);
+  const list = FX.parts.map(p => stage(p, time)).filter(Boolean);
+  list.sort((a, b) => b.z - a.z);
+  list.forEach(q => { ctx.fillStyle = rgb(q.c, q.a ?? 1); ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); });
+}
+
+/* enter: legend → cube → explode → map */
+const T_ENTER = { cube: 1100, hold: 1900, boom: 2350, land: 3450 };
+function enterStage(p, t) {
+  const T = T_ENTER;
+  if (t < T.cube) {
+    const k = ease(clamp01((t - p.d1) / (T.cube - 260)));
+    const c = project(p.pt, t, 1, p);
+    return { x: mix(p.lx + p.lb / 2, c.x, k), y: mix(p.ly + p.lb / 2, c.y, k), s: mix(p.lb, c.s, k), z: c.z * k, c: mixC(p.lc, cubeColor(p, c), k) };
+  }
+  if (t < T.hold) {
+    const c = project(p.pt, t, 1 + Math.sin((t - T.cube) / 140) * .02, p);
+    return { x: c.x, y: c.y, s: c.s, z: c.z, c: cubeColor(p, c) };
+  }
+  const c0 = project(p.pt, T.hold, 1, p);
+  const dx = c0.x - FX.w / 2, dy = c0.y - FX.h / 2, len = Math.hypot(dx, dy) || 1;
+  const bx = FX.w / 2 + dx / len * p.spread, by = FX.h / 2 + dy / len * p.spread;
+  if (t < T.boom) {
+    const k = easeOut(clamp01((t - T.hold) / (T.boom - T.hold)));
+    return { x: mix(c0.x, bx, k), y: mix(c0.y, by, k), s: mix(c0.s, c0.s * 1.3, k), z: 0, c: mixC(cubeColor(p, c0), [0, 255, 65], k) };
+  }
+  const k = ease(clamp01((t - T.boom - p.d2) / (T.land - T.boom - 320)));
+  return { x: mix(bx, p.mx + p.ms / 2, k), y: mix(by, p.my + p.ms / 2, k), s: mix(c0.s * 1.3, p.ms, k), z: 0, c: mixC([0, 255, 65], p.mc, k) };
+}
+
+/* exit: map → scatter → cube → collapse */
+const T_EXIT = { lift: 500, cube: 1400, hold: 2000, gone: 2550 };
+function exitStage(p, t) {
+  const T = T_EXIT;
+  if (t < T.lift) {
+    const k = easeOut(clamp01((t - p.d2 * .5) / (T.lift - 160)));
+    return { x: mix(p.mx + p.ms / 2, FX.w / 2 + p.ex, k), y: mix(p.my + p.ms / 2, FX.h / 2 + p.ey, k), s: mix(p.ms, p.ms * 1.2 + 2, k), z: 0, c: mixC(p.mc, [0, 255, 65], k) };
+  }
+  if (t < T.cube) {
+    const k = ease(clamp01((t - T.lift - p.d1) / (T.cube - T.lift - 260)));
+    const c = project(p.pt, t, 1, p);
+    return { x: mix(FX.w / 2 + p.ex, c.x, k), y: mix(FX.h / 2 + p.ey, c.y, k), s: mix(p.ms * 1.2 + 2, c.s, k), z: c.z * k, c: mixC([0, 255, 65], cubeColor(p, c), k) };
+  }
+  if (t < T.hold) {
+    const c = project(p.pt, t, 1, p);
+    return { x: c.x, y: c.y, s: c.s, z: c.z, c: cubeColor(p, c) };
+  }
+  const k = ease(clamp01((t - T.hold) / (T.gone - T.hold)));
+  const c = project(p.pt, t, 1 - k, p);
+  return { x: c.x, y: c.y, s: c.s * (1 - k * .6), z: c.z, c: mixC(cubeColor(p, c), [0, 255, 65], k), a: 1 - k * k };
+}
+
+function runFx(stage, total, done) {
+  cancelAnimationFrame(FX.raf);
+  const t0 = performance.now();
+  const step = (now) => {
+    const t = now - t0;
+    renderFx(Math.min(t, total), stage);
+    if (t < total) FX.raf = requestAnimationFrame(step);
+    else done();
+  };
+  FX.raf = requestAnimationFrame(step);
+}
+
+/* ---------- open / close ---------- */
+function fillAdvProducts() {
+  $('advProducts').innerHTML = [...products.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(p => `<option value="${WSK.esc(p)}"></option>`).join('');
+}
+
+function openAdv() {
+  if (!locs.size && !meta.size) { WSK.setText($('searchStatus'), 'adv_no_data'); return; }
+  WSK.setText($('searchStatus'), null);
+  const el = $('adv');
+  el.hidden = false; el.classList.remove('ready');
+  document.body.style.overflow = 'hidden';
+  $('advIntro').classList.remove('fade', 'gone');
+  $('advFx').style.display = '';
+  advLevel = 0; $('advLevel').value = '0'; $('advProduct').value = ''; $('advType').value = ''; $('advEmpty').checked = false;
+  advSel = null; advPinned = false; $('advTip').hidden = true;
+  fillAdvProducts();
+  FX.phase = 'intro';
+  const draw = () => { if (FX.phase === 'intro') drawLegend(); };
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+  $('advUnderstand').focus();
+}
+
+function showMapNow() {
+  $('advIntro').classList.add('gone');
+  $('adv').classList.add('ready');
+  $('advFx').getContext('2d').clearRect(0, 0, FX.w, FX.h);
+  $('advFx').style.display = 'none';
+  FX.phase = 'map';
+  $('advProduct').focus({ preventScroll: true });
+}
+
+$('advUnderstand').addEventListener('click', () => {
+  if (FX.phase !== 'intro') return;
+  // the map needs its final size before the cubes can land on it
+  $('advIntro').classList.add('fade');
+  layoutMap(); drawMap();
+  if (reduceMotion()) { showMapNow(); return; }
+  FX.phase = 'enter';
+  fxSize(); buildParticles(false);
+  runFx(enterStage, T_ENTER.land, showMapNow);
+});
+
+function closeAdv() {
+  if (FX.phase !== 'map') return;
+  advPinned = false; advSel = null; $('advTip').hidden = true;
+  const finish = () => {
+    cancelAnimationFrame(FX.raf);
+    $('adv').hidden = true; $('adv').classList.remove('ready');
+    document.body.style.overflow = '';
+    FX.phase = 'idle';
+    $('btnAdvanced').focus();
+  };
+  if (reduceMotion()) { finish(); return; }
+  FX.phase = 'exit';
+  fxSize(); buildParticles(true);
+  $('advFx').style.display = '';
+  $('adv').classList.remove('ready');
+  runFx(exitStage, T_EXIT.gone, finish);
+}
+
+$('btnAdvanced').addEventListener('click', openAdv);
+$('advExit').addEventListener('click', closeAdv);
+document.addEventListener('keydown', (e) => {
+  if ($('adv').hidden || e.key !== 'Escape') return;
+  if (advPinned) { advPinned = false; advSel = null; showTip(null); drawMap(); return; }
+  if (FX.phase === 'map') closeAdv();
+});
+window.addEventListener('resize', () => {
+  if ($('adv').hidden) return;
+  if (FX.phase === 'intro') drawLegend();
+  if (FX.phase === 'map') { layoutMap(); drawMap(); showTip(null); advPinned = false; advSel = null; }
+});
+
+/* ---------- language ---------- */
+document.addEventListener('wsk:langchange', () => {
+  fillOptions(); render();
+  if ($('adv').hidden) return;
+  if (FX.phase === 'intro') drawLegend();
+  if (FX.phase === 'map') { drawMap(); if (advSel && advPinned) { const sec = geo.secs.find(q => q.key === advSel.key); showTip({ key: advSel.key, p: advSel.p, sec }); } }
+});
+updateHeightHint();
+fillOptions();
+</script>
+</body>
+</html>

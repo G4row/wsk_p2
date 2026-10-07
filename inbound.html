@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Inbound · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<style>
+  .po-head { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .kv span { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .kv b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; color: var(--white); }
+  .kv b.good { color: var(--accent); }
+  .kv b.warn { color: var(--warn); }
+  tr.unknown td { background: rgba(255, 210, 63, .06); }
+  .warn-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border: 1px dashed var(--warn); color: var(--warn); font-size: 11px; }
+  .pt { font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+</style>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Inbound', page_title: 'Inbound', page_sub: 'See which purchase orders arrive today and how many pallets they bring.',
+    sel_title: 'Purchase order', lbl_client: 'Client', lbl_po: 'Purchase order', opt_choose_client: '— choose a client —', opt_choose_po: '— choose a purchase order —',
+    opt_po: '{po} · ETA {eta} · {n} lines',
+    k_eta: 'ETA', k_dock: 'Dock', k_lines: 'Lines', k_pcs: 'Pieces', k_pal: 'Pallets (est.)', k_new: 'Not in MasterData',
+    lines_title: 'Products arriving', col_prod: 'Product', col_qty: 'Qty (pcs)', col_per: 'Pcs/pallet', col_full: 'Full pallets', col_boxes: 'Boxes', col_rest: 'Pcs', col_type: 'Pallet',
+    unknown: 'Not in MasterData: pallets cannot be calculated',
+    excel_title: 'Import from Excel', excel_desc: 'Same columns as the Inbound sheet: A = purchase order, B = client ID, C = date, D = ETA, E = dock, F = product code, G = quantity (pcs), H = note.',
+    no_data: 'No inbound data. Sign in with the master workbook or upload a file.', choose: 'Choose a client and a purchase order.'
+  },
+  nl: {
+    doc_title: 'Inkomend', page_title: 'Inkomend', page_sub: 'Zie welke inkooporders vandaag binnenkomen en hoeveel pallets ze brengen.',
+    sel_title: 'Inkooporder', lbl_client: 'Klant', lbl_po: 'Inkooporder', opt_choose_client: '— kies een klant —', opt_choose_po: '— kies een inkooporder —',
+    opt_po: '{po} · ETA {eta} · {n} regels',
+    k_eta: 'ETA', k_dock: 'Dock', k_lines: 'Regels', k_pcs: 'Stuks', k_pal: 'Pallets (schatting)', k_new: 'Niet in MasterData',
+    lines_title: 'Producten die binnenkomen', col_prod: 'Product', col_qty: 'Aantal (st)', col_per: 'St/pallet', col_full: 'Volle pallets', col_boxes: 'Dozen', col_rest: 'St', col_type: 'Pallet',
+    unknown: 'Niet in MasterData: pallets kunnen niet worden berekend',
+    excel_title: 'Importeren uit Excel', excel_desc: 'Dezelfde kolommen als het blad Inbound: A = inkooporder, B = klant-ID, C = datum, D = ETA, E = dock, F = productcode, G = aantal (st), H = opmerking.',
+    no_data: 'Geen inkomende gegevens. Log in met het hoofdbestand of upload een bestand.', choose: 'Kies een klant en een inkooporder.'
+  },
+  hr: {
+    doc_title: 'Ulaz robe', page_title: 'Ulaz robe', page_sub: 'Koje narudžbenice danas stižu i koliko paleta donose.',
+    sel_title: 'Narudžbenica', lbl_client: 'Klijent', lbl_po: 'Narudžbenica', opt_choose_client: '— odaberite klijenta —', opt_choose_po: '— odaberite narudžbenicu —',
+    opt_po: '{po} · ETA {eta} · {n} linija',
+    k_eta: 'ETA', k_dock: 'Dok', k_lines: 'Linija', k_pcs: 'Komada', k_pal: 'Paleta (procjena)', k_new: 'Nije u MasterData',
+    lines_title: 'Proizvodi koji dolaze', col_prod: 'Proizvod', col_qty: 'Količina (kom)', col_per: 'Kom/paleta', col_full: 'Pune palete', col_boxes: 'Kutije', col_rest: 'Kom', col_type: 'Paleta',
+    unknown: 'Nije u MasterData: palete se ne mogu izračunati',
+    excel_title: 'Uvoz iz Excela', excel_desc: 'Isti stupci kao list Inbound: A = narudžbenica, B = ID klijenta, C = datum, D = ETA, E = dok, F = šifra proizvoda, G = količina (kom), H = napomena.',
+    no_data: 'Nema podataka o ulazu. Prijavite se s glavnim Excelom ili učitajte datoteku.', choose: 'Odaberite klijenta i narudžbenicu.'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+</head>
+<body data-page="inbound">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://operations/inbound</div>
+  <h1 data-i18n="page_title">Inbound</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="sel_title">Purchase order</h2>
+    <div class="card-body">
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="selClient" data-i18n="lbl_client">Client</label>
+          <select id="selClient"></select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="selPo" data-i18n="lbl_po">Purchase order</label>
+          <select id="selPo" disabled></select>
+        </div>
+      </div>
+      <div class="status" id="selInfo" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card" id="poCard" hidden>
+    <h2><span data-i18n="lines_title">Products arriving</span> <span id="poTitle" style="color: var(--white)"></span></h2>
+    <div class="card-body">
+      <div class="po-head" id="poHead"></div>
+    </div>
+    <div class="table-wrap">
+      <table id="poTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th data-i18n="col_prod">Product</th>
+            <th data-i18n="col_qty">Qty (pcs)</th>
+            <th data-i18n="col_per">Pcs/pallet</th>
+            <th data-i18n="col_full">Full pallets</th>
+            <th data-i18n="col_boxes">Boxes</th>
+            <th data-i18n="col_rest">Pcs</th>
+            <th data-i18n="col_type">Pallet</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="excel_title">Import from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const str = (v) => v == null ? '' : String(v).trim();
+  const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  const fmtN = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+
+  /* Inbound rows: A PO, B client, C date, D ETA, E dock, F product, G qty, H note */
+  let ROWS = [];
+
+  function masterMaps() {
+    const md = new Map();
+    WSKSession.sheet('masterdata').forEach(r => {
+      const code = str(r[0]); if (!code) return;
+      const kpk = num(r[3]) || 1, kpp = num(r[4]);
+      md.set(code, { desc: str(r[1]), kpk, kpp, full: num(r[5]) || kpk * kpp, type: str(r[9]) });
+    });
+    const clients = new Map(WSKSession.sheet('clients').map(r => [str(r[0]), str(r[1])]));
+    return { md, clients };
+  }
+  let M = { md: new Map(), clients: new Map() };
+
+  function loadRows(data) {
+    ROWS = (data.rows || []).slice(1).filter(r => r && str(r[0]) && str(r[5]));
+    M = masterMaps();
+    fillClients();
+  }
+
+  const source = WSKSession.wireModule({
+    page: 'inbound', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { ROWS = []; fillClients(); },
+    fromMain: () => {
+      const r = WSKSession.sheet('inbound');
+      return r.length ? { rows: [['po'], ...r] } : null;
+    }
+  });
+  WSKSession.ready.then(() => { if (!ROWS.length) fillClients(); });
+
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0) };
+      loadRows(data);
+      WSK.setText($('excelStatus'), 'excel_loaded', { n: ROWS.length });
+      source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  function fillClients() {
+    const keep = $('selClient').value;
+    const ids = [...new Set(ROWS.map(r => str(r[1])))].sort();
+    $('selClient').innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_client'))}</option>` +
+      ids.map(id => `<option value="${WSK.esc(id)}">${WSK.esc(id)} · ${WSK.esc(M.clients.get(id) || '')}</option>`).join('');
+    $('selClient').value = ids.includes(keep) ? keep : (ids.length === 1 ? ids[0] : '');
+    $('selClient').disabled = !ids.length;
+    WSK.setText($('selInfo'), ids.length ? 'choose' : 'no_data');
+    fillPos();
+  }
+
+  function fillPos() {
+    const cid = $('selClient').value, keep = $('selPo').value, sel = $('selPo');
+    if (!cid) { sel.innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_po'))}</option>`; sel.disabled = true; render(); return; }
+    const pos = new Map();
+    ROWS.filter(r => str(r[1]) === cid).forEach(r => {
+      const p = pos.get(str(r[0])) || { n: 0, eta: str(r[3]) }; p.n++; pos.set(str(r[0]), p);
+    });
+    const list = [...pos.entries()].sort((a, b) => a[1].eta.localeCompare(b[1].eta) || a[0].localeCompare(b[0]));
+    sel.innerHTML = `<option value="">${WSK.esc(WSK.t('opt_choose_po'))}</option>` +
+      list.map(([po, p]) => `<option value="${WSK.esc(po)}">${WSK.esc(WSK.t('opt_po', { po, eta: p.eta || '--:--', n: p.n }))}</option>`).join('');
+    sel.disabled = false;
+    const nos = list.map(x => x[0]);
+    sel.value = nos.includes(keep) ? keep : (nos.length === 1 ? nos[0] : '');
+    render();
+  }
+
+  function render() {
+    const po = $('selPo').value;
+    if (!po) { $('poCard').hidden = true; if (ROWS.length) WSK.setText($('selInfo'), 'choose'); return; }
+    $('selInfo').textContent = '';
+    const lines = ROWS.filter(r => str(r[0]) === po);
+    const f = lines[0];
+    let pcs = 0, pallets = 0, unknown = 0;
+    const body = lines.map((r, i) => {
+      const code = str(r[5]), q = num(r[6]), m = M.md.get(code);
+      pcs += q;
+      if (!m || !m.full) {
+        unknown++;
+        return `<tr class="unknown"><td class="num">${i + 1}</td><td><strong>${WSK.esc(code)}</strong><div><span class="warn-tag">${WSK.esc(WSK.t('unknown'))}</span></div></td>
+          <td class="num">${fmtN(q)}</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td></tr>`;
+      }
+      const full = Math.floor(q / m.full), restPcs = q - full * m.full;
+      const boxes = Math.floor(restPcs / m.kpk), rest = restPcs - boxes * m.kpk;
+      pallets += full + (restPcs > 0 ? 1 : 0);
+      return `<tr><td class="num">${i + 1}</td>
+        <td><strong>${WSK.esc(code)}</strong><div class="muted" style="font-size:12px">${WSK.esc(m.desc)}</div></td>
+        <td class="num">${fmtN(q)}</td><td class="num">${fmtN(m.full)}</td>
+        <td class="num ${full ? 'val-good' : 'muted'}">${full}</td><td class="num">${boxes}</td><td class="num ${rest ? 'val-bad' : ''}">${rest}</td>
+        <td><span class="pt">${WSK.esc(m.type || '')}</span></td></tr>`;
+    }).join('');
+    $('poTable').querySelector('tbody').innerHTML = body;
+    $('poTitle').textContent = '· ' + po;
+    const kv = (k, v, cls) => `<div class="kv"><span>${WSK.esc(WSK.t(k))}</span><b class="${cls || ''}">${WSK.esc(String(v))}</b></div>`;
+    $('poHead').innerHTML = kv('k_eta', str(f[3]) || '--:--') + kv('k_dock', str(f[4]) || '—') + kv('k_lines', lines.length) +
+      kv('k_pcs', fmtN(pcs)) + kv('k_pal', pallets, 'good') + (unknown ? kv('k_new', unknown, 'warn') : '');
+    $('poCard').hidden = false;
+  }
+
+  $('selClient').addEventListener('change', () => { $('selPo').value = ''; fillPos(); });
+  $('selPo').addEventListener('change', render);
+  document.addEventListener('wsk:langchange', fillClients);
+</script>
+</body>
+</html>

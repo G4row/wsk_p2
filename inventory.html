@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#020602">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WSK">
+<title>Inventory Search · Warehouse Swiss Knife</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+<script src="warehouse.js"></script>
+<script>
+window.PAGE_I18N = {
+  en: {
+    doc_title: 'Inventory Search', page_title: 'Inventory search', page_sub: 'Find stock and identify empty locations.',
+    excel_title: 'Import inventory from Excel', excel_inv_desc: 'Columns: A = location, B = product, C = pallet ID, D = quantity. Optional: E = status (reserved / blocked), F = pallet type (EU / BLOCK). Reading starts at row 2. A row with only a location counts as an empty location.',
+    filter_title: 'Search & filter', lbl_search: 'Quick search', ph_search: 'Product, pallet ID or location…',
+    lbl_1st_letter: '1st letter (A–Z)', opt_all_letters: 'All letters',
+    lbl_level: 'Level (4th character, 0–9)', opt_all_levels: 'All levels',
+    chk_empty_only: 'Show empty locations only',
+    results: 'Inventory results', col_loc: 'Location', col_prod: 'Product', col_pallet: 'Pallet ID', col_qty: 'Qty',
+    empty_loc: 'empty', no_match: 'Nothing matches this search.', load_first: 'Load an Excel file to start.',
+    btn_advanced: '[ Advanced ]', btn_exit: 'Exit', understand: 'Understand', skip_hint: 'Tap to show everything',
+    cmd_scan: 'wsk --scan warehouse',
+    g_wh: 'Warehouse', s_total: 'Total locations', s_level: 'Locations per level', s_levels: '× {n} levels',
+    g_prod: 'Products', s_products: 'Individual products', s_top: 'Top 5 by total quantity',
+    g_type: 'Pallet type', s_eu: 'EU pallet locations', s_block: 'Block pallet locations', s_none: 'No pallet type',
+    g_status: 'Status', s_occupied: 'Occupied', s_reserved: 'Reserved', s_blocked: 'Blocked', s_free: 'Free',
+    s_outside: 'Excel rows outside the layout',
+    boot: 'Booting modules', m_empty: 'Empty locations', m_merge: 'Merging', m_sort: 'Sorting',
+    under: 'Under construction', soon: '{m}: under construction. Coming soon.',
+    adv_title: 'Warehouse report'
+  },
+  nl: {
+    doc_title: 'Voorraad zoeken', page_title: 'Voorraad zoeken', page_sub: 'Vind voorraad en lege locaties.',
+    excel_title: 'Voorraad importeren uit Excel', excel_inv_desc: 'Kolommen: A = locatie, B = product, C = pallet-ID, D = aantal. Optioneel: E = status (gereserveerd / geblokkeerd), F = pallettype (EU / BLOCK). Inlezen begint bij rij 2. Een regel met alleen een locatie telt als lege locatie.',
+    filter_title: 'Zoeken & filteren', lbl_search: 'Snel zoeken', ph_search: 'Product, pallet-ID of locatie…',
+    lbl_1st_letter: '1e letter (A–Z)', opt_all_letters: 'Alle letters',
+    lbl_level: 'Niveau (4e teken, 0–9)', opt_all_levels: 'Alle niveaus',
+    chk_empty_only: 'Alleen lege locaties tonen',
+    results: 'Voorraadresultaten', col_loc: 'Locatie', col_prod: 'Product', col_pallet: 'Pallet-ID', col_qty: 'Aantal',
+    empty_loc: 'leeg', no_match: 'Niets gevonden voor deze zoekopdracht.', load_first: 'Laad een Excel-bestand om te beginnen.',
+    btn_advanced: '[ Geavanceerd ]', btn_exit: 'Sluiten', understand: 'Begrepen', skip_hint: 'Tik om alles te tonen',
+    cmd_scan: 'wsk --scan magazijn',
+    g_wh: 'Magazijn', s_total: 'Totaal locaties', s_level: 'Locaties per niveau', s_levels: '× {n} niveaus',
+    g_prod: 'Producten', s_products: 'Afzonderlijke producten', s_top: 'Top 5 op totaal aantal',
+    g_type: 'Pallettype', s_eu: 'Locaties voor EU-pallets', s_block: 'Locaties voor blokpallets', s_none: 'Zonder pallettype',
+    g_status: 'Status', s_occupied: 'Bezet', s_reserved: 'Gereserveerd', s_blocked: 'Geblokkeerd', s_free: 'Vrij',
+    s_outside: 'Excel-regels buiten de indeling',
+    boot: 'Modules opstarten', m_empty: 'Lege locaties', m_merge: 'Samenvoegen', m_sort: 'Sorteren',
+    under: 'In aanbouw', soon: '{m}: in aanbouw. Binnenkort beschikbaar.',
+    adv_title: 'Magazijnrapport'
+  },
+  hr: {
+    doc_title: 'Pretraga inventara', page_title: 'Pretraga inventara', page_sub: 'Pronađite zalihe i prazne lokacije.',
+    excel_title: 'Uvoz inventara iz Excela', excel_inv_desc: 'Stupci: A = lokacija, B = proizvod, C = ID palete, D = količina. Neobavezno: E = status (rezervirano / blokirano), F = tip palete (EU / BLOCK). Čitanje počinje od 2. reda. Red sa samo lokacijom računa se kao prazna lokacija.',
+    filter_title: 'Pretraga i filtri', lbl_search: 'Brza pretraga', ph_search: 'Proizvod, ID palete ili lokacija…',
+    lbl_1st_letter: '1. slovo (A–Z)', opt_all_letters: 'Sva slova',
+    lbl_level: 'Razina (4. znak, 0–9)', opt_all_levels: 'Sve razine',
+    chk_empty_only: 'Prikaži samo prazne lokacije',
+    results: 'Rezultati inventara', col_loc: 'Lokacija', col_prod: 'Proizvod', col_pallet: 'ID palete', col_qty: 'Količina',
+    empty_loc: 'prazno', no_match: 'Nema rezultata za ovu pretragu.', load_first: 'Učitajte Excel datoteku za početak.',
+    btn_advanced: '[ Napredno ]', btn_exit: 'Izlaz', understand: 'Razumijem', skip_hint: 'Dodirnite za prikaz svega',
+    cmd_scan: 'wsk --scan skladiste',
+    g_wh: 'Skladište', s_total: 'Ukupno lokacija', s_level: 'Lokacija po nivou', s_levels: '× {n} nivoa',
+    g_prod: 'Proizvodi', s_products: 'Pojedinačnih proizvoda', s_top: 'Top 5 po ukupnoj količini',
+    g_type: 'Tip palete', s_eu: 'Lokacije za EU palete', s_block: 'Lokacije za BLOCK palete', s_none: 'Bez tipa palete',
+    g_status: 'Status', s_occupied: 'Zauzeto', s_reserved: 'Rezervirano', s_blocked: 'Blokirano', s_free: 'Slobodno',
+    s_outside: 'Redaka iz Excela izvan rasporeda',
+    boot: 'Pokretanje modula', m_empty: 'Prazne lokacije', m_merge: 'Spajanje', m_sort: 'Sortiranje',
+    under: 'U izradi', soon: '{m}: u izradi. Dolazi uskoro.',
+    adv_title: 'Izvještaj skladišta'
+  }
+};
+</script>
+<script src="i18n.js"></script>
+<script src="session.js"></script>
+<style>
+  .adv-open { margin-top: 14px; width: auto; flex: 0 0 auto; letter-spacing: .08em; }
+  .ia {
+    position: fixed; inset: 0; z-index: 2500; overflow-y: auto;
+    display: flex; flex-direction: column;
+    background: #010401;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  .ia[hidden], .ia [hidden] { display: none !important; }
+  .ia::after {   /* CRT scanlines over the whole pop-up */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 8;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0, rgba(0,0,0,.25) 1px, transparent 1px, transparent 3px);
+  }
+  .ia-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .ia-title { font-family: var(--display); font-weight: 400; font-size: 28px; line-height: 1; color: var(--white); }
+  .ia-exit { flex: 0 0 auto; min-height: 40px; }
+
+  /* ----- report (terminal) ----- */
+  .ia-report { flex: 1 0 auto; width: 100%; max-width: 860px; margin: 0 auto; padding: 22px 16px 28px; display: flex; flex-direction: column; gap: 18px; }
+  .ia-term { font-size: 15px; line-height: 1.75; color: var(--text); }
+  .ia-cmd { color: var(--accent); margin-bottom: 10px; }
+  .ia-grp { margin-top: 14px; color: var(--accent); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+  .ia-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 15em); align-items: baseline; column-gap: 14px; }
+  .ia-row.sub .ia-lbl { padding-left: 2.2em; }
+  .ia-lbl { color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  .ia-lbl::after { content: attr(data-lead); color: #1f7a3a; }
+  .ia-val {
+    min-width: 6.5ch; text-align: right; white-space: nowrap;
+    font-family: var(--display); font-size: 27px; line-height: 1; color: var(--white);
+    text-shadow: 0 0 10px rgba(0,255,65,.35); font-variant-numeric: tabular-nums;
+  }
+  .ia-val small { font-family: var(--mono); font-size: 12px; color: var(--muted); text-shadow: none; margin-left: 6px; }
+  .ia-dot { color: var(--accent); }
+  .ia-bar { white-space: nowrap; overflow: hidden; letter-spacing: -1px; font-size: 13px; }
+  .ia-cur { display: inline-block; width: .55em; height: 1.05em; vertical-align: -.15em; background: var(--accent); animation: ia-blink 1s steps(1) infinite; }
+  @keyframes ia-blink { 50% { opacity: 0; } }
+  .ia-skip { font-size: 12px; color: var(--muted); text-align: center; }
+  .ia-understand { align-self: center; flex: 0 0 auto; min-width: 220px; letter-spacing: .1em; }
+  @media (max-width: 640px) {
+    .ia-term { font-size: 13px; }
+    .ia-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .ia-bar { grid-column: 1 / -1; line-height: 1; margin: -2px 0 4px; }
+    .ia-row.sub .ia-lbl { padding-left: 1.2em; }
+    .ia-val { font-size: 23px; }
+  }
+
+  /* ----- boot / module menu ----- */
+  .ia-boot { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px 16px 32px; }
+  .ia-caption { min-height: 1.5em; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+  .ia-menu { display: flex; flex-direction: column; gap: 14px; width: min(340px, 100%); }
+  .ia-mbtn {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    min-height: 56px; padding: 0 18px; width: 100%;
+    background: transparent; border: 2px solid var(--accent); color: var(--accent);
+    font-family: var(--mono); font-size: 16px; letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+    visibility: hidden;
+  }
+  .ia-mbtn b { font-weight: 700; color: var(--white); }
+  .ia-mbtn span { color: var(--muted); }
+  .ia-mbtn:hover, .ia-mbtn:focus-visible { background: var(--hover); box-shadow: 0 0 18px rgba(0,255,65,.3); outline: none; }
+  .ia.menu-on .ia-mbtn { visibility: visible; }
+  .ia-note { min-height: 1.4em; font-size: 13px; color: var(--warn); text-align: center; }
+  .ia-uc { display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; transition: opacity .6s ease; }
+  .ia.uc-on .ia-uc { opacity: 1; }
+  .ia-wh { width: 200px; height: auto; image-rendering: pixelated; }
+  .ia-uc-label { font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--warn); animation: ia-blink 1.4s steps(1) infinite; }
+  .ia-fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 7; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .ia-uc-label, .ia-cur { animation: none; } }
+</style>
+</head>
+<body data-page="inventory">
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">W+</span><span class="brand-text"><strong>Warehouse Swiss Knife</strong><span data-i18n="brand_sub">Warehouse operations toolkit</span></span></a>
+    <div class="lang-switcher" data-lang-switcher></div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="kicker">&gt; wsk://inventory/search</div>
+  <h1 data-i18n="page_title">Inventory search</h1>
+  <p data-i18n="page_sub"></p>
+</section>
+
+<main class="container">
+  <section class="card">
+    <h2 data-i18n="excel_title">Import inventory from Excel</h2>
+    <div class="card-body">
+      <p class="hint" data-i18n="excel_inv_desc"></p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv">
+      <div class="status" id="excelStatus" aria-live="polite"></div>
+      <div class="src-line" id="srcLine"></div>
+      <button type="button" class="btn btn-secondary adv-open" id="btnAdvanced" hidden data-i18n="btn_advanced">[ Advanced ]</button>
+    </div>
+  </section>
+
+  <section class="card" id="searchCard" hidden>
+    <h2 data-i18n="filter_title">Search &amp; filter</h2>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="searchInput" data-i18n="lbl_search">Quick search</label>
+        <input type="text" id="searchInput" data-i18n-placeholder="ph_search" oninput="filterAndRender()" autocomplete="off">
+      </div>
+      <div class="flex-row">
+        <div class="form-group flex-1">
+          <label for="filterLetter" data-i18n="lbl_1st_letter">1st letter</label>
+          <select id="filterLetter" onchange="filterAndRender()">
+            <option value="" data-i18n="opt_all_letters">All letters</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="filterLevel" data-i18n="lbl_level">Level</label>
+          <select id="filterLevel" onchange="filterAndRender()">
+            <option value="" data-i18n="opt_all_levels">All levels</option>
+          </select>
+        </div>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="emptyOnly" onchange="filterAndRender()">
+        <label for="emptyOnly" data-i18n="chk_empty_only">Show empty locations only</label>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="listCard" hidden>
+    <h2><span data-i18n="results">Inventory results</span> <span>(<span id="matchCount">0</span>)</span></h2>
+    <div class="table-wrap">
+      <table id="inventoryTable">
+        <thead>
+          <tr>
+            <th data-i18n="col_loc">Location</th>
+            <th data-i18n="col_prod">Product</th>
+            <th data-i18n="col_pallet">Pallet ID</th>
+            <th data-i18n="col_qty">Qty</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ===== Advanced: warehouse report + module menu ===== -->
+<div class="ia" id="ia" role="dialog" aria-modal="true" aria-labelledby="iaTitle" hidden>
+  <div class="ia-top">
+    <h2 class="ia-title" id="iaTitle" data-i18n="adv_title">Warehouse report</h2>
+    <button type="button" class="btn btn-danger ia-exit" id="iaExit" data-i18n="btn_exit">Exit</button>
+  </div>
+
+  <div class="ia-report" id="iaReport">
+    <div class="ia-term" id="iaTerm" aria-live="off"></div>
+    <p class="ia-skip" id="iaSkip" data-i18n="skip_hint"></p>
+    <button type="button" class="btn btn-primary ia-understand" id="iaUnderstand" hidden data-i18n="understand">Understand</button>
+  </div>
+
+  <div class="ia-boot" id="iaBoot" hidden>
+    <div class="ia-caption" id="iaCaption"></div>
+    <div class="ia-menu" id="iaMenu">
+      <button type="button" class="ia-mbtn" data-mod="m_empty"><span>[</span><b data-i18n="m_empty">Empty locations</b><span>]</span></button>
+      <button type="button" class="ia-mbtn" data-mod="m_merge"><span>[</span><b data-i18n="m_merge">Merging</b><span>]</span></button>
+      <button type="button" class="ia-mbtn" data-mod="m_sort"><span>[</span><b data-i18n="m_sort">Sorting</b><span>]</span></button>
+    </div>
+    <div class="ia-note" id="iaNote" aria-live="polite"></div>
+    <div class="ia-uc" id="iaUc">
+      <svg class="ia-wh" viewBox="0 0 64 34" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="0" y="32" width="64" height="2" fill="#1f7a3a"/>
+        <g fill="#2f9e52">
+          <rect x="3" y="6" width="1" height="26"/><rect x="18" y="6" width="1" height="26"/>
+          <rect x="23" y="6" width="1" height="26"/><rect x="38" y="6" width="1" height="26"/>
+          <rect x="43" y="6" width="1" height="26"/><rect x="58" y="6" width="1" height="26"/>
+        </g>
+        <g fill="#5fd47f">
+          <rect x="3" y="6" width="16" height="1"/><rect x="3" y="14" width="16" height="1"/><rect x="3" y="22" width="16" height="1"/>
+          <rect x="23" y="6" width="16" height="1"/><rect x="23" y="14" width="16" height="1"/><rect x="23" y="22" width="16" height="1"/>
+          <rect x="43" y="6" width="16" height="1"/><rect x="43" y="14" width="16" height="1"/><rect x="43" y="22" width="16" height="1"/>
+        </g>
+        <g fill="#0f4d22">
+          <rect x="5" y="30" width="12" height="2"/><rect x="25" y="30" width="12" height="2"/><rect x="45" y="30" width="12" height="2"/>
+        </g>
+        <g fill="#00ff41"><rect x="60" y="1" width="1" height="1"/><rect x="62" y="3" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/></g>
+      </svg>
+      <div class="ia-uc-label">[ <span data-i18n="under">Under construction</span> ]</div>
+    </div>
+  </div>
+  <canvas class="ia-fx" id="iaFx" aria-hidden="true"></canvas>
+</div>
+
+<nav class="nav-bar" data-nav></nav>
+
+<script>
+  let inventoryData = [];
+  const $ = (id) => document.getElementById(id);
+
+  function addOptions(select, values) {
+    values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; select.appendChild(o); });
+  }
+  addOptions($('filterLetter'), Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)));
+  addOptions($('filterLevel'), Array.from({ length: 10 }, (_, i) => String(i)));
+
+  $('excelFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    WSK.readWorkbook(file, (wb) => {
+      const data = { rows: WSK.sheetRows(wb, 0) };
+      loadRows(data);
+      source.saved(file.name, data);
+    }, $('excelStatus'));
+  });
+
+  /* rows: A location, B product, C pallet ID, D quantity, E status, F pallet type (row 1 = header) */
+  function loadRows(data) {
+      const rows = data.rows || [];
+      rawRows = rows.slice(1);
+      $('btnAdvanced').hidden = false;
+      inventoryData = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r.length) continue;
+        const location = String(r[0] ?? '').trim();
+        if (!location) continue;
+        const product = String(r[1] ?? '').trim();
+        const palletId = String(r[2] ?? '').trim();
+        const hasQty = r[3] !== undefined && r[3] !== null && String(r[3]).trim() !== '';
+        const qty = hasQty ? parseFloat(r[3]) : null;
+        inventoryData.push({ location, product, palletId, qty, isEmpty: !product && !palletId && !hasQty });
+      }
+      WSK.setText($('excelStatus'), 'excel_loaded', { n: inventoryData.length });
+      $('searchCard').hidden = false;
+      $('listCard').hidden = false;
+      filterAndRender();
+  }
+
+  // master workbook: Stock sheet (same columns as this page)
+  const source = WSKSession.wireModule({
+    page: 'inventory', srcEl: $('srcLine'), load: loadRows,
+    clear: () => { inventoryData = []; rawRows = []; filterAndRender(); },
+    fromMain: () => {
+      const st = WSKSession.sheet('stock');
+      return st.length ? { rows: [['location', 'product', 'pallet', 'qty', 'status', 'type'], ...st] } : null;
+    }
+  });
+
+  function filterAndRender() {
+    const query = $('searchInput').value.toLowerCase().trim();
+    const letter = $('filterLetter').value;
+    const level = $('filterLevel').value;
+    const emptyOnly = $('emptyOnly').checked;
+
+    const filtered = inventoryData.filter(item => {
+      const loc = item.location.toUpperCase();
+      return (!query || loc.toLowerCase().includes(query) || item.product.toLowerCase().includes(query) || item.palletId.toLowerCase().includes(query)) &&
+             (!letter || loc.charAt(0) === letter) &&
+             (!level || (loc.length >= 4 && loc.charAt(3) === level)) &&
+             (!emptyOnly || item.isEmpty);
+    });
+
+    $('matchCount').textContent = filtered.length;
+    const tbody = document.querySelector('#inventoryTable tbody');
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">${WSK.esc(WSK.t(inventoryData.length ? 'no_match' : 'load_first'))}</td></tr>`;
+      return;
+    }
+    const emptyLabel = WSK.esc(WSK.t('empty_loc'));
+    tbody.innerHTML = filtered.map(item => `
+      <tr>
+        <td><span class="loc-tag">${WSK.esc(item.location)}</span></td>
+        <td>${item.product ? `<strong>${WSK.esc(item.product)}</strong>` : `<span class="muted">— ${emptyLabel} —</span>`}</td>
+        <td><code>${WSK.esc(item.palletId)}</code></td>
+        <td class="num">${item.qty != null && !isNaN(item.qty) ? item.qty : 0}</td>
+      </tr>`).join('');
+  }
+
+  document.addEventListener('wsk:langchange', () => { if (inventoryData.length) filterAndRender(); });
+
+  /* =====================================================================
+     ADVANCED — warehouse report (typed) + boot screen with module menu
+     ===================================================================== */
+  let rawRows = [];
+  const IA = { token: 0, skip: false, phase: 'idle', raf: 0, note: null };
+  const STATUS_COLORS = { occupied: '#ffd23f', reserved: '#2f8bff', blocked: '#c0392b', free: '#00ff41' };
+  const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmtN = (n) => Number(n).toLocaleString({ en: 'en-GB', nl: 'nl-NL', hr: 'hr-HR' }[WSK.getLang()] || undefined);
+  const LEAD = ' ' + '.'.repeat(80);
+  const BAR_W = 24;
+
+  function iaWait(ms, tok) {
+    return new Promise(res => {
+      if (IA.skip || tok !== IA.token) return res();
+      const t0 = performance.now();
+      const tick = () => (IA.skip || tok !== IA.token || performance.now() - t0 >= ms) ? res() : requestAnimationFrame(tick);
+      requestAnimationFrame(tick);
+    });
+  }
+
+  const cursor = document.createElement('span');
+  cursor.className = 'ia-cur';
+
+  async function iaType(el, text, perChar, tok) {
+    el.appendChild(cursor);
+    if (IA.skip) { el.insertBefore(document.createTextNode(text), cursor); return; }
+    const node = document.createTextNode('');
+    el.insertBefore(node, cursor);
+    const step = Math.max(1, Math.round(16 / Math.max(1, perChar)));   // several chars per frame when fast
+    for (let i = 0; i < text.length; i += step) {
+      if (tok !== IA.token) return;
+      if (IA.skip) { node.textContent = text; return; }
+      node.textContent = text.slice(0, i + step);
+      await iaWait(perChar * step, tok);
+    }
+    node.textContent = text;
+  }
+
+  function reportItems(a, heights) {
+    const T = WSK.t;
+    const items = [{ kind: 'cmd', text: '> ' + T('cmd_scan') }];
+    items.push({ kind: 'grp', text: T('g_wh') });
+    items.push({ kind: 'row', label: T('s_total'), value: a.total });
+    const hs = [...new Set(Object.values(heights || {}))].sort((x, y) => x - y);
+    items.push({ kind: 'row', label: T('s_level'), value: a.perLevel,
+                 small: hs.length ? hs.map(h => '0–' + h).join(' · ') : T('s_levels', { n: a.levels }) });
+    items.push({ kind: 'grp', text: T('g_prod') });
+    items.push({ kind: 'row', label: T('s_products'), value: a.products });
+    if (a.top.length) {
+      items.push({ kind: 'row', label: T('s_top') });
+      const max = a.top[0].qty || 1;
+      a.top.forEach((p, i) => items.push({ kind: 'row', sub: true, label: `${i + 1}. ${p.product}`, value: p.qty, bar: { r: p.qty / max, c: '#00ff41' } }));
+    }
+    items.push({ kind: 'grp', text: T('g_type') });
+    items.push({ kind: 'row', label: T('s_eu'), value: a.type.EU, bar: { r: a.type.EU / a.total, c: '#e6ffec' } });
+    items.push({ kind: 'row', label: T('s_block'), value: a.type.BLOCK, bar: { r: a.type.BLOCK / a.total, c: '#a6f0bb' } });
+    if (a.type.none) items.push({ kind: 'row', label: T('s_none'), value: a.type.none, bar: { r: a.type.none / a.total, c: '#5fd47f' } });
+    items.push({ kind: 'grp', text: T('g_status') });
+    [['occupied', a.status.occupied], ['reserved', a.status.reserved], ['blocked', a.status.blocked], ['free', a.status.empty]]
+      .forEach(([k, v]) => items.push({ kind: 'row', label: T('s_' + k), value: v, bar: { r: v / a.total, c: STATUS_COLORS[k] } }));
+    if (a.outside) items.push({ kind: 'row', label: T('s_outside'), value: a.outside, warn: true });
+    return items;
+  }
+
+  async function runReport(instant) {
+    const tok = ++IA.token;
+    IA.skip = !!instant || reduceMotion();
+    const term = $('iaTerm');
+    term.innerHTML = '';
+    $('iaUnderstand').hidden = true;
+    $('iaSkip').hidden = IA.skip;
+    const heights = WSKWarehouse.heightsFromRacks(WSKSession.sheet('racks'));
+    const items = reportItems(WSKWarehouse.analyze(rawRows, { heights }), heights);
+
+    for (const it of items) {
+      if (tok !== IA.token) return;
+      if (it.kind === 'cmd' || it.kind === 'grp') {
+        const d = document.createElement('div');
+        d.className = it.kind === 'cmd' ? 'ia-cmd' : 'ia-grp';
+        term.appendChild(d);
+        await iaType(d, it.text, 5, tok);
+        await iaWait(it.kind === 'cmd' ? 220 : 60, tok);
+        continue;
+      }
+      const row = document.createElement('div');
+      row.className = 'ia-row' + (it.sub ? ' sub' : '');
+      const lbl = document.createElement('span'); lbl.className = 'ia-lbl';
+      const val = document.createElement('span'); val.className = 'ia-val';
+      const bar = document.createElement('span'); bar.className = 'ia-bar';
+      row.append(lbl, val, bar);
+      term.appendChild(row);
+
+      await iaType(lbl, it.label, 4, tok);                 // 1. label, typed fast
+      if (it.value === undefined) { await iaWait(60, tok); continue; }
+      lbl.setAttribute('data-lead', LEAD);                  //    dotted leader to the number column
+
+      const dot = document.createElement('span');           // 2. one dot blinks three times
+      dot.className = 'ia-dot'; dot.textContent = '.';
+      val.appendChild(dot);
+      for (let b = 0; b < 3 && !IA.skip; b++) {
+        dot.style.visibility = 'visible'; await iaWait(55, tok);
+        dot.style.visibility = 'hidden';  await iaWait(55, tok);
+      }
+      dot.remove();
+
+      if (it.warn) val.style.color = 'var(--warn)';          // 3. the number, digit by digit
+      await iaType(val, fmtN(it.value), 20, tok);
+      if (it.small) { const sm = document.createElement('small'); sm.textContent = it.small; val.insertBefore(sm, cursor.parentNode === val ? cursor : null); }
+
+      if (it.bar) {                                          // 4. proportion bar
+        const n = it.value > 0 ? Math.max(1, Math.round(it.bar.r * BAR_W)) : 0;
+        const on = document.createElement('span'); on.style.color = it.bar.c;
+        const off = document.createElement('span'); off.style.color = '#0f4d22';
+        bar.append(on, off);
+        await iaType(on, '█'.repeat(n), 2, tok);
+        off.textContent = '░'.repeat(BAR_W - n);
+      }
+      await iaWait(40, tok);
+    }
+    if (tok !== IA.token) return;
+    cursor.remove();
+    $('iaSkip').hidden = true;
+    $('iaUnderstand').hidden = false;
+    $('iaUnderstand').focus({ preventScroll: true });
+    IA.phase = 'report-done';
+  }
+
+  /* ---------- boot screen: logo → three buttons ---------- */
+  // 15 × 11 pixel logo: frame + "W+" (same mark as the header)
+  const LOGO = (() => {
+    const W = ['10001', '10001', '10001', '10101', '10101', '11011', '10001'];
+    const P = ['00000', '00100', '00100', '11111', '00100', '00100', '00000'];
+    const rows = ['111111111111111', '100000000000001'];
+    for (let i = 0; i < 7; i++) rows.push('10' + W[i] + '0' + P[i] + '01');
+    rows.push('100000000000001', '111111111111111');
+    return rows;
+  })();
+  let parts = [], fxW = 0, fxH = 0;
+
+  function fxSetup() {
+    const cv = $('iaFx'), dpr = window.devicePixelRatio || 1;
+    fxW = window.innerWidth; fxH = window.innerHeight;
+    cv.width = Math.round(fxW * dpr); cv.height = Math.round(fxH * dpr);
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+
+  function perimeterPoint(rects, d) {
+    for (const r of rects) {
+      const P = 2 * (r.w + r.h);
+      if (d > P) { d -= P; continue; }
+      if (d <= r.w) return [r.x + d, r.y];
+      d -= r.w; if (d <= r.h) return [r.x + r.w, r.y + d];
+      d -= r.h; if (d <= r.w) return [r.x + r.w - d, r.y + r.h];
+      d -= r.w; return [r.x, r.y + r.h - d];
+    }
+    const r = rects[rects.length - 1]; return [r.x, r.y];
+  }
+
+  function buildLogo() {
+    const menu = $('iaMenu').getBoundingClientRect();
+    const btns = [...document.querySelectorAll('.ia-mbtn')].map(b => {
+      const q = b.getBoundingClientRect(); return { x: q.left + 1, y: q.top + 1, w: q.width - 2, h: q.height - 2 };
+    });
+    const c = Math.max(7, Math.min(16, Math.floor(Math.min(fxW, fxH) * 0.04)));
+    const lw = LOGO[0].length * c, lh = LOGO.length * c;
+    const ox = menu.left + menu.width / 2 - lw / 2, oy = menu.top + menu.height / 2 - lh / 2;
+    parts = [];
+    LOGO.forEach((row, y) => [...row].forEach((v, x) => {
+      if (v !== '1') return;
+      for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
+        parts.push({ x: ox + x * c + sx * c / 2, y: oy + y * c + sy * c / 2, s: c / 2 - .5, row: y, appear: y * 55 + Math.random() * 140, d: Math.random() * 360 });
+      }
+    }));
+    const P = btns.reduce((sum, r) => sum + 2 * (r.w + r.h), 0);
+    // spread the particles evenly over the outlines of the three buttons
+    const order = parts.map((_, i) => i).sort((a, b) => parts[a].y - parts[b].y || parts[a].x - parts[b].x);
+    order.forEach((pi, k) => { const [tx, ty] = perimeterPoint(btns, (k + .5) / parts.length * P); parts[pi].tx = tx; parts[pi].ty = ty; });
+  }
+
+  const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  const BOOT = { show: 950, glitch: 1400, fly: 2450, fade: 2750 };
+
+  function drawBoot(ctx, t) {
+    ctx.clearRect(0, 0, fxW, fxH);
+    const glitchOn = t > BOOT.show && t < BOOT.glitch && (Math.floor(t / 70) % 3 === 0);
+    parts.forEach(p => {
+      let x = p.x, y = p.y, s = p.s, a = 1;
+      if (t < BOOT.show) {
+        if (t < p.appear) return;
+        a = t - p.appear < 120 ? (Math.random() < .5 ? .25 : 1) : 1;          // flicker while switching on
+      } else if (t < BOOT.glitch) {
+        if (glitchOn && p.row % 3 === 1) x += (p.row % 2 ? 1 : -1) * p.s * .8;
+      } else {
+        const k = ease(clamp01((t - BOOT.glitch - p.d) / (BOOT.fly - BOOT.glitch - 360)));
+        x = p.x + (p.tx - 1.5 - p.x) * k; y = p.y + (p.ty - 1.5 - p.y) * k;
+        s = p.s + (3 - p.s) * k;
+        if (t > BOOT.fly) a = 1 - clamp01((t - BOOT.fly) / (BOOT.fade - BOOT.fly));
+      }
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#00ff41';
+      ctx.fillRect(x, y, s, s);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function showMenuNow() {
+    const ia = $('ia');
+    ia.classList.add('menu-on', 'uc-on');
+    $('iaFx').getContext('2d').clearRect(0, 0, fxW, fxH);
+    IA.phase = 'menu';
+    document.querySelector('.ia-mbtn').focus({ preventScroll: true });
+  }
+
+  async function runBoot() {
+    const tok = ++IA.token;
+    IA.skip = false;
+    IA.phase = 'boot';
+    $('iaReport').hidden = true;
+    $('iaBoot').hidden = false;
+    $('ia').classList.remove('menu-on', 'uc-on');
+    IA.note = null; WSK.setText($('iaNote'), null);
+    $('iaCaption').textContent = '';
+    if (reduceMotion()) { $('iaCaption').textContent = WSK.t('boot') + ' … OK'; showMenuNow(); return; }
+
+    const ctx = fxSetup();
+    buildLogo();
+    iaType($('iaCaption'), WSK.t('boot') + ' ...', 30, tok).then(() => cursor.remove());
+    const t0 = performance.now();
+    await new Promise(res => {
+      const step = (now) => {
+        if (tok !== IA.token) return res();
+        const t = now - t0;
+        drawBoot(ctx, t);
+        if (t > BOOT.fly && !$('ia').classList.contains('menu-on')) $('ia').classList.add('menu-on');
+        if (t < BOOT.fade) IA.raf = requestAnimationFrame(step); else res();
+      };
+      IA.raf = requestAnimationFrame(step);
+    });
+    if (tok !== IA.token) return;
+    $('iaCaption').textContent = WSK.t('boot') + ' ... OK';
+    showMenuNow();
+  }
+
+  /* ---------- open / close ---------- */
+  function openIA() {
+    if (!rawRows.length) return;
+    $('ia').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('iaReport').hidden = false;
+    $('iaBoot').hidden = true;
+    $('ia').classList.remove('menu-on', 'uc-on');
+    IA.phase = 'report';
+    runReport();
+  }
+
+  function closeIA() {
+    IA.token++;
+    cancelAnimationFrame(IA.raf);
+    cursor.remove();
+    $('ia').hidden = true;
+    document.body.style.overflow = '';
+    IA.phase = 'idle';
+    $('btnAdvanced').focus({ preventScroll: true });
+  }
+
+  $('btnAdvanced').addEventListener('click', openIA);
+  $('iaExit').addEventListener('click', closeIA);
+  $('iaUnderstand').addEventListener('click', (e) => { e.stopPropagation(); runBoot(); });
+  $('iaReport').addEventListener('click', () => { if (IA.phase === 'report') IA.skip = true; });
+  document.addEventListener('keydown', (e) => {
+    if ($('ia').hidden) return;
+    if (e.key === 'Escape') { closeIA(); return; }
+    if (IA.phase === 'report' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); IA.skip = true; }
+  });
+  $('iaMenu').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mod]');
+    if (!b) return;
+    IA.note = b.dataset.mod;
+    WSK.setText($('iaNote'), 'soon', { m: WSK.t(IA.note).toUpperCase() });
+  });
+
+  document.addEventListener('wsk:langchange', () => {
+    if ($('ia').hidden) return;
+    if (IA.phase === 'report' || IA.phase === 'report-done') runReport(true);
+    if (IA.phase === 'menu') {
+      $('iaCaption').textContent = WSK.t('boot') + ' ... OK';
+      if (IA.note) WSK.setText($('iaNote'), 'soon', { m: WSK.t(IA.note).toUpperCase() });
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (!$('ia').hidden && IA.phase === 'boot') { IA.token++; cancelAnimationFrame(IA.raf); showMenuNow(); }
+  });
+
+</script>
+</body>
+</html>
